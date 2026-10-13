@@ -470,6 +470,11 @@
           ],
           "type": "string"
         },
+        "single_node_regions": {
+          "description": "Regions that should always receive exactly one cluster.",
+          "items": {"type": "string"},
+          "type": "array"
+        },
         "administrative": {
           "description": "Configuration for `clustering.administrative` settings.",
           "properties": {
@@ -5588,6 +5593,21 @@
           "default": true,
           "description": "Add ammonia as a carrier. It can be either true (copperplated NH3), false (no NH3 carrier) or \"regional\" (regionalised NH3 without network)."
         },
+        "ammonia_turbine": {
+          "default": true,
+          "description": "Add ammonia-fuelled turbines for re-electrification.",
+          "type": "boolean"
+        },
+        "ammonia_cracker": {
+          "default": false,
+          "description": "Add ammonia crackers for hydrogen production.",
+          "type": "boolean"
+        },
+        "electrolysis_p_min_pu": {
+          "anyOf": [{"type": "boolean"}, {"type": "number"}],
+          "default": false,
+          "description": "Minimum output per unit of installed electrolysis capacity."
+        },
         "min_part_load_electrolysis": {
           "default": 0,
           "description": "The minimum unit dispatch (`p_min_pu`) for electrolysis.",
@@ -10124,6 +10144,78 @@
         "type": "string"
       },
       "type": "array"
+    },
+    "uk_settings": {
+      "description": "Configuration for UK-specific data, preparation, and solving options.",
+      "properties": {
+        "data": {
+          "properties": {
+            "uk_energy_balance_year": {"default": 2024, "type": "integer"},
+            "uk_electricity_demand_year": {"default": 2025, "type": "integer"},
+            "uk_new_gas_storage_data": {"default": true, "type": "boolean"},
+            "uk_new_powerplants_data": {"default": true, "type": "boolean"},
+            "uk_new_industry_data": {"default": false, "type": "boolean"}
+          }
+        },
+        "prepare": {
+          "properties": {
+            "uk_scale_up_offwind_potential": {"default": 2, "type": "number"},
+            "uk_include_offshore_buses": {"default": false, "type": "boolean"},
+            "uk_transmission_limits": {
+              "additionalProperties": {"type": "number"},
+              "default": {"2025": 0, "2030": 0, "2035": 0.15, "2040": 0.15, "2045": 0.15, "2050": 0.15},
+              "type": "object"
+            },
+            "reduce_model_in_the_east": {
+              "anyOf": [
+                {"type": "boolean"},
+                {"additionalProperties": {"items": {"type": "string"}, "type": "array"}, "type": "object"}
+              ],
+              "default": false
+            },
+            "use_dynamic_gas_prices": {"default": false, "type": "boolean"},
+            "gas_prices": {
+              "additionalProperties": {"type": "number"},
+              "default": {"UK": 36, "EU": 34, "imports": 50},
+              "type": "object"
+            },
+            "planned_hydrogen_projects": {
+              "anyOf": [
+                {
+                  "properties": {
+                    "scenario": {"default": "pipeline-led", "enum": ["pipeline-led", "network-upgrades-led"], "type": "string"},
+                    "demand_level": {"default": "high", "type": "string"},
+                    "implementation_year": {"default": 2030, "type": "integer"}
+                  }
+                },
+                {"type": "boolean"}
+              ],
+              "default": false
+            }
+          }
+        },
+        "solve": {
+          "properties": {
+            "uk_only": {"default": true, "type": "boolean"},
+            "uk_freeze_base_year_capacities": {"default": true, "type": "boolean"},
+            "uk_freeze_wind_projects": {"additionalProperties": {"items": {"type": "integer"}, "type": "array"}, "type": "object"},
+            "uk_brownfield_minimum_capacity_factors": {"additionalProperties": {"additionalProperties": {"type": "number"}, "type": "object"}, "type": "object"},
+            "uk_max_electric_heating_share": {"anyOf": [{"type": "boolean"}, {"type": "number"}], "default": false},
+            "uk_fixed_electricity_generation_mix": {"default": false, "type": "boolean"},
+            "uk_remove_storage": {"default": false, "type": "boolean"},
+            "uk_deployment_rate_limits": {"additionalProperties": {"type": "number"}, "type": "object"}
+          }
+        }
+      }
+    },
+    "LDES": {
+      "properties": {
+        "technologies": {
+          "default": ["redox flow battery", "compressed air", "molten salt", "liquid air"],
+          "items": {"type": "string"},
+          "type": "array"
+        }
+      }
     },
     "snapshots": {
       "description": "Configuration for `snapshots` settings.",

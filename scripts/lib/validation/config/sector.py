@@ -827,6 +827,9 @@ class SectorConfig(BaseModel):
     ammonia_cracker: bool = Field(
         False, description="Add ammonia crackers for hydrogen production."
     )
+    electrolysis_p_min_pu: bool | float = Field(
+        False, description="Minimum output per unit of installed electrolysis capacity."
+    )
     min_part_load_electrolysis: float = Field(
         0, description="The minimum unit dispatch (`p_min_pu`) for electrolysis."
     )

@@ -30,6 +30,7 @@ from scripts._helpers import (
     sanitize_custom_columns,
     set_scenario_config,
 )
+from scripts import add_brownfield as brownfield_module
 from scripts.add_brownfield import adjust_renewable_capacity_limits
 from scripts.add_brownfield import main as apply_brownfield
 from scripts.add_electricity import main as add_electricity_components
@@ -71,6 +72,7 @@ if __name__ == "__main__":
     config = snakemake.config
     params = snakemake.params
     inputs = snakemake.input
+    brownfield_module.snakemake = snakemake
     existing_baseyear_module.snakemake = snakemake
     sector_network_module.snakemake = snakemake
 

@@ -227,7 +227,7 @@ def add_planned_generation_capacities(n, year, file, onshore_regions_file, uk_se
                                                                 "offwind-ac": "offwind-dc"}) # assumption: new offshore wind farms are DC-connected
 
     # Add planned capacities to network
-    planning_horizon = snakemake.config["scenario"]["planning_horizons"]
+    planning_horizon = snakemake.params.horizons
     previous_year = planning_horizon[planning_horizon.index(year) - 1]
     for tech in df_OIM_pp_uc.Technology.unique():
         df_tech = df_OIM_pp_uc.query("Technology == @tech")[["DateIn", "DateOut", "Capacity", "bus"]]
@@ -378,7 +378,7 @@ def add_planned_storage_capacities(n, year, file):
     # only consider storage planned and not yet in operation
     df_OIM_storage_uc = df_OIM_storage.query("status == 'under construction'")
 
-    planning_horizon = snakemake.config["scenario"]["planning_horizons"]
+    planning_horizon = snakemake.params.horizons
     previous_year = planning_horizon[planning_horizon.index(year) - 1]
 
     # rename technologies to match pypsa-eur naming
