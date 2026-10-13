@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: CC0-1.0
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#top-level-configuration
-version: v2025.07.0
+version: v2026.09.0
 tutorial: false
 
 logging:
@@ -33,20 +33,13 @@ foresight: myopic
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#scenario
 # Wildcard docs in https://pypsa-eur.readthedocs.io/en/latest/wildcards.html
-scenario:
-  clusters:
-  - 13 # minimum number of clusters vary with the variable "area_threshold" under clustering
-  opts:
-  - ''
-  sector_opts:
-  - '1h'
-  planning_horizons:
-  - 2025
-  - 2030
-  - 2035
-  - 2040
-  - 2045
-  - 2050
+planning_horizons:
+- 2025
+- 2030
+- 2035
+- 2040
+- 2045
+- 2050
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#countries
 countries:
@@ -135,8 +128,7 @@ co2_budget:
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#electricity
 electricity:
   voltages: [220., 300., 330., 380., 400., 500., 750.]
-  base_network: osm-prebuilt
-  osm-prebuilt-version: 0.6
+  base_network: osm
   gaslimit_enable: false
   gaslimit: false
   co2limit_enable: false
@@ -989,8 +981,8 @@ costs:
     "CO2 intensity": 0
     "discount rate": 0.07
     "standing losses": 0
-  overwrites : {"investment": {"HighT-Molten-Salt-store": 20.0e3, # EUR / MWh
-                                "Compressed-Air-Adiabatic-store": 26.0e3, # EUR / MWh (assuming above-ground storage)
+  overwrites : {"investment": {"HighT-Molten-Salt-store": 20000.0, # EUR / MWh
+                                "Compressed-Air-Adiabatic-store": 26000.0, # EUR / MWh (assuming above-ground storage)
                                 },
                 "lifetime": {"Compressed-Air-Adiabatic-store": 30.0, # years (median of literature, see Fig. 12 in https://doi.org/10.1016/j.egyr.2025.11.037)
                             "battery inverter": 15.0, # years (assuming replacement of inverters every 15 years)
@@ -1046,6 +1038,7 @@ clustering:
     remove_stubs: true
     remove_stubs_across_borders: false
   cluster_network:
+    n_clusters: 13
     algorithm: kmeans
     subregions:
       GB:
@@ -1200,7 +1193,7 @@ solving:
 
   check_objective:
     enable: false
-    expected_value: None
+    expected_value: null
     atol: 1_000_000
     rtol: 0.01
 

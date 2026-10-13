@@ -187,6 +187,29 @@ class TestUKConfig:
                 }
             )
 
+    def test_preserves_local_co2_and_clustering_subregions(self):
+        config = validate_config(
+            {
+                "local_co2": {"GB": {2030: 0.5}},
+                "clustering": {
+                    "cluster_network": {
+                        "subregions": {
+                            "GB": {
+                                "geojson": "data/regions.geojson",
+                                "id_field": "name",
+                            }
+                        }
+                    }
+                },
+            }
+        )
+
+        assert config.local_co2["GB"][2030] == 0.5
+        assert (
+            config.clustering.cluster_network.subregions["GB"].geojson
+            == "data/regions.geojson"
+        )
+
 
 class TestValidateScenarios:
     base = {"foresight": "overnight", "planning_horizons": [2050]}

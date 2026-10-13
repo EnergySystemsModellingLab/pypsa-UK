@@ -161,6 +161,8 @@ co2_budget:
     2050: 0.0
   lower:
 
+local_co2: false
+
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration/#electricity_cf
 electricity:
   voltages:
@@ -1287,9 +1289,6 @@ costs:
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration/#clustering_cf
 clustering:
   mode: busmap
-  single_node_regions:
-  - GBNI
-  - GBGL
   area_threshold: 1000 # km2
   single_node_regions: # force listed regions to have only one node
     - GBNI 

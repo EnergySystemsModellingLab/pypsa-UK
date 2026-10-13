@@ -163,6 +163,10 @@ class ConfigSchema(BaseModel):
         default_factory=Co2BudgetConfig,
         description="CO2 budget as fraction of 1990 emissions per planning horizon year.",
     )
+    local_co2: bool | dict[str, dict[int, float]] = Field(
+        False,
+        description="Optional regional CO2 emissions limits by planning horizon.",
+    )
     electricity: ElectricityConfig = Field(
         default_factory=ElectricityConfig,
         description="Electricity sector configuration.",

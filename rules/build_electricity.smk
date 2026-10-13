@@ -781,6 +781,7 @@ rule cluster_network:
         mode=config_provider("clustering", "mode"),
         administrative=config_provider("clustering", "administrative"),
         group_clusters=config_provider("clustering", "group_clusters"),
+        single_node_regions=config_provider("clustering", "single_node_regions"),
         cluster_network=config_provider("clustering", "cluster_network"),
         n_clusters=config_provider("clustering", "cluster_network", "n_clusters"),
         aggregation_strategies=config_provider(

@@ -599,6 +599,29 @@
                 "type": "string"
               },
               "type": "array"
+            },
+            "subregions": {
+              "additionalProperties": {
+                "properties": {
+                  "geojson": {"type": "string"},
+                  "id_field": {"default": "name", "type": "string"},
+                  "allocation_method": {
+                    "default": "load",
+                    "enum": ["load", "buses", "equal"],
+                    "type": "string"
+                  },
+                  "min_clusters_per_subregion": {"default": 1, "type": "integer"},
+                  "on_unassigned": {
+                    "default": "nearest",
+                    "enum": ["nearest", "error"],
+                    "type": "string"
+                  }
+                },
+                "required": ["geojson"],
+                "type": "object"
+              },
+              "description": "Optional polygon definitions for splitting countries into subregions before clustering.",
+              "type": "object"
             }
           }
         },
@@ -10342,6 +10365,20 @@
           "description": "Lower CO2 budget limit to prevent unrealistic/too-fast decarbonization. Set individual years to None to disable constraint."
         }
       }
+    },
+    "local_co2": {
+      "anyOf": [
+        {"type": "boolean"},
+        {
+          "additionalProperties": {
+            "additionalProperties": {"type": "number"},
+            "type": "object"
+          },
+          "type": "object"
+        }
+      ],
+      "default": false,
+      "description": "Optional regional CO2 emissions limits by planning horizon."
     },
     "electricity": {
       "description": "Configuration for `electricity` settings.",
