@@ -1039,12 +1039,16 @@ def build_heating_efficiencies(
 
     return heating_efficiencies
 
-def update_UK_energy_balance(energy: pd.DataFrame) -> None:
+def update_UK_energy_balance(
+    energy: pd.DataFrame, energy_balance_file: str
+) -> pd.DataFrame:
 
     road_rail_fraction = 0.95 # based on EUROSTAT transport sector split for UK between 2017 - 2019
 
     # read new energy balance data from ECUK
-    energy_balance_new_UK_all = pd.read_excel("data/data_UK/ECUK_2025_End_Use_tables.xlsx", sheet_name="Table U2", header=2)
+    energy_balance_new_UK_all = pd.read_excel(
+        energy_balance_file, sheet_name="Table U2", header=2
+    )
     energy_balance_years = energy_balance_new_UK_all.Year.unique()
 
     for energy_balance_year in energy_balance_years:
@@ -1179,6 +1183,8 @@ if __name__ == "__main__":
 
     energy = build_energy_totals(countries, eurostat, swiss, idees)
     update_residential_from_eurostat(energy, snakemake.input.eurostat_households)
+    if snakemake.input.uk_energy_balance:
+        energy = update_UK_energy_balance(energy, snakemake.input.uk_energy_balance)
     energy.to_csv(snakemake.output.energy_name)
 
     district_heat_share = build_district_heat_share(

@@ -810,6 +810,11 @@ rule build_energy_totals:
         district_heat_share="data/district_heat_share.csv",
         eurostat=resources("eurostat_energy_balances.csv"),
         eurostat_households=rules.retrieve_eurostat_household_balances.output["csv"],
+        uk_energy_balance=lambda w: (
+            "data/data_UK/ECUK_2025_End_Use_tables.xlsx"
+            if "GB" in config_provider("countries")(w)
+            else []
+        ),
     output:
         energy_name=resources("energy_totals.csv"),
         transport_name=resources("transport_data_raw.csv"),
