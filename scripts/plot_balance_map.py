@@ -340,18 +340,7 @@ if __name__ == "__main__":
         )
 
     fig.savefig(
-        snakemake.output.map1,
-        dpi=400,
-        bbox_inches="tight",
-    )
-
-    # Save UK focused map
-    # zoom in on UK
-    lon_min, lon_max = -7, 2
-    lat_min, lat_max = 50, 60
-    ax.set_extent([lon_min, lon_max, lat_min, lat_max])
-    fig.savefig(
-        snakemake.output.map2,
+        snakemake.output[0],
         dpi=400,
         bbox_inches="tight",
     )

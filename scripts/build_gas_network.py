@@ -135,13 +135,11 @@ def prepare_dataset(
     df["p_nom_diameter"] = df.diameter_mm.apply(diameter_to_capacity)
     ratio = df.p_nom / df.p_nom_diameter
     not_nordstream = df.max_pressure_bar < 220
-    df_p_nom_replace = df.p_nom_diameter.where(
-                    (df.p_nom <= 500)
-                    | ((ratio > correction_threshold_p_nom) & not_nordstream)
-                    | ((ratio < 1 / correction_threshold_p_nom) & not_nordstream)
-                    ).dropna()
-
-    df.loc[df_p_nom_replace.index, "p_nom"] = df_p_nom_replace
+    df["p_nom"] = df.p_nom_diameter.where(
+        (df.p_nom <= 500)
+        | ((ratio > correction_threshold_p_nom) & not_nordstream)
+        | ((ratio < 1 / correction_threshold_p_nom) & not_nordstream)
+    )
 
     # lines which have way too discrepant line lengths
     # get assigned haversine length * length factor

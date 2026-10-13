@@ -103,7 +103,6 @@ rule base_network:
         links=config_provider("links"),
         transformers=config_provider("transformers"),
         clustering=config_provider("clustering", "mode"),
-        cluster_network=config_provider("clustering", "cluster_network"),
         admin_levels=config_provider("clustering", "administrative"),
     script:
         scripts("base_network.py")
@@ -181,7 +180,7 @@ rule build_nuts3_shapes:
         offshore_shapes=resources("offshore_shapes.geojson"),
         bidding_zones=lambda w: (
             resources("bidding_zones.geojson")
-            if config_provider("clustering", "mode")(w) in {"administrative", "administrative_mixed"}
+            if config_provider("clustering", "mode")(w) == "administrative"
             else []
         ),
         other_gdp=rules.retrieve_gdp_per_capita.output["gdp"],
@@ -776,10 +775,8 @@ rule cluster_network:
         mem_mb=10000,
     params:
         countries=config_provider("countries"),
-        area_threshold=config_provider("clustering", "area_threshold"),
         mode=config_provider("clustering", "mode"),
         administrative=config_provider("clustering", "administrative"),
-        group_clusters=config_provider("clustering", "group_clusters"),
         cluster_network=config_provider("clustering", "cluster_network"),
         n_clusters=config_provider("clustering", "cluster_network", "n_clusters"),
         aggregation_strategies=config_provider(

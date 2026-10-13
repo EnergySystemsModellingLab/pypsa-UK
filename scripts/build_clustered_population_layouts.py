@@ -17,7 +17,7 @@ import geopandas as gpd
 import pandas as pd
 import xarray as xr
 
-from scripts._helpers import configure_logging, get_snapshots, load_cutout, set_scenario_config
+from scripts._helpers import configure_logging, load_cutout, set_scenario_config
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +30,7 @@ if __name__ == "__main__":
     configure_logging(snakemake)
     set_scenario_config(snakemake)
 
-    time = get_snapshots(snakemake.params.snapshots, snakemake.params.drop_leap_day)
-    
-    cutout = load_cutout(snakemake.input.cutout, time=time)
+    cutout = load_cutout(snakemake.input.cutout)
 
     clustered_regions = (
         gpd.read_file(snakemake.input.onshore_regions).set_index("name").buffer(0)

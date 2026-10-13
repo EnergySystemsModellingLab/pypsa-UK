@@ -40,8 +40,6 @@ from scipy.spatial import KDTree
 from shapely.geometry import Point
 from tqdm import tqdm
 
-from scripts.cluster_network import temporarily_split_countries_into_subcountries
-
 from scripts._helpers import (
     REGION_COLS,
     configure_logging,
@@ -895,7 +893,7 @@ def process_offshore_regions(
         if country not in offshore_shapes.index:
             continue
 
-        c_b = n.buses.country.str[0:2] == country
+        c_b = buses.country == country
         offshore_shape = offshore_shapes[country]
         offshore_locs = buses.loc[c_b & buses.substation_off, ["x", "y"]].rename_axis(
             "name"
@@ -962,7 +960,7 @@ def build_bus_shapes(
     buses["admin"] = ""
 
     # Map buses per country
-    for country in list(n.buses.country.unique()):
+    for country in countries:
         buses_subset = buses.loc[buses["country"] == country]
 
         buses.loc[buses_subset.index, "admin"] = gpd.sjoin_nearest(
@@ -1508,7 +1506,7 @@ def build_admin_shapes(
 
     level = admin_levels.get("level", 0)
 
-    if clustering in ("administrative", "administrative_mixed"):
+    if clustering == "administrative":
         logger.info(f"Building bus regions at administrative level {level}")
 
         nuts3_regions["column"] = level_map[level]
@@ -1688,27 +1686,6 @@ if __name__ == "__main__":
         countries,
     )
 
-    # Change admin shapes to be compatible with RESP
-    cluster_subregions = snakemake.params.cluster_network.get("subregions", {})
-    if cluster_subregions:
-    
-        if "GB" in admin_shapes.index:
-            admin_shapes.drop(index = "GB", inplace = True)
-
-        resp = gpd.read_file(cluster_subregions["GB"]["geojson"])
-        resp = resp.rename(columns ={"name": "country"})[["country", "geometry"]]
-        resp["admin"] = resp["country"]
-        resp.set_index("admin", inplace=True)
-        resp["parent"] = "GB"
-        resp["contains"] = "GB"
-        resp["substations"] = 1
-        resp = resp[admin_shapes.columns]
-
-        if not resp.index.isin(admin_shapes.index).all():    
-            admin_shapes = pd.concat([admin_shapes, 
-                                      resp.to_crs(admin_shapes.crs)])
-        temporarily_split_countries_into_subcountries(n, cluster_subregions)
-
     onshore_regions, offshore_regions, onshore_shapes, offshore_shapes = (
         build_bus_shapes(
             n,
@@ -1719,7 +1696,6 @@ if __name__ == "__main__":
     )
 
     # Export network
-    n.buses.country = n.buses.country.str[0:2]
     n.meta = snakemake.config
     n.export_to_netcdf(snakemake.output.base_network)
 

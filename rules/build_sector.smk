@@ -984,24 +984,6 @@ rule build_salt_cavern_potentials:
     script:
         scripts("build_salt_cavern_potentials.py")
 
-rule build_depleted_gas_field_potentials:
-    input:
-        depleted_gas_fields="data/data_UK/secret/UK_depleted_gas_fields.csv",
-        regions_onshore=resources("regions_onshore_base_s_{clusters}.geojson"),
-        regions_offshore=resources("regions_offshore_base_s_{clusters}.geojson"),
-    output:
-        clustered_depleted_gas_fields=resources("depleted_gas_field_potentials_s_{clusters}.csv"),
-    threads: 1
-    resources:
-        mem_mb=2000,
-    log:
-        logs("build_depleted_gas_field_potentials_s_{clusters}.log"),
-    benchmark:
-        benchmarks("build_depleted_gas_field_potentials_s_{clusters}")
-    conda:
-        "../envs/environment.yaml"
-    script:
-        "../scripts/build_depleted_gas_field_potentials.py"
 
 rule build_ammonia_production:
     """Extracts historical annual ammonia production per country from USGS statistics."""
