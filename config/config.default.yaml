@@ -22,10 +22,10 @@ remote:
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration/#run_cf
 run:
-  prefix: ""
-  name: ""
+  prefix: "pypsa-uk"
+  name: "all" # scenario name
   scenarios:
-    enable: false
+    enable: true
     file: config/scenarios.yaml
   disable_progressbar: false
   shared_resources:
@@ -56,7 +56,7 @@ countries:
 - ES
 - FI
 - FR
-- GB
+- GB # Here, "GB" refers to United Kingdom of Great Britain and Northern Ireland
 - GR
 - HR
 - HU
@@ -76,7 +76,66 @@ countries:
 - SE
 - SI
 - SK
-- XK
+
+uk_settings:
+
+  # input data for the UK
+  data: 
+    uk_energy_balance_year: 2024 # year for UK energy balance data, updates "build_energy_totals.py" (ECUK Table U2 - currently not available for 2025. Next update is end of September 2026.)
+    uk_electricity_demand_year: 2025 # UK electricity demand data (ESPENI)
+    uk_new_gas_storage_data: true # whether to use new UK gas storage data (various sources)
+    uk_new_powerplants_data: true # whether to use new UK powerplant data (OpenStreetMap)  
+    uk_new_industry_data: false # whether to use new UK industry energy demand data from UK gov (DUKES)
+  
+  # settings for the UK defined in the "prepare_sector_network.py" script
+  prepare:
+    uk_scale_up_offwind_potential: 2 # to align with UK government's offshore wind targets, we increase the estimated offshore wind potential in the UK by 2 
+    uk_include_offshore_buses: false # whether offshore buses (not to be confused with offshore regions) are included.
+    uk_transmission_limits: 
+      2025: 0
+      2030: 0
+      2035: 0.15 # max expansion of existing transmission in percentage of today's capacity 
+      2040: 0.15 
+      2045: 0.15
+      2050: 0.15
+    reduce_model_in_the_east: false # whether to reduce the model in the eastern part of Europe by clustering Balkan, Baltic and East European countries into three representative regions, respectively. 
+    use_dynamic_gas_prices: false
+    gas_prices: 
+      UK: 36.0 # [EUR/MWh], source: https://tradingeconomics.com/commodity/uk-natural-gas (2025 average)
+      EU: 34.0 # [EUR/MWh], source: https://tradingeconomics.com/commodity/eu-natural-gas (2025 average)
+      imports: 50.0 # [EUR/MWh], source: https://lngprice.com/ (17.92 USD / MMBtu)
+    planned_hydrogen_projects:
+      scenario: "pipeline-led"
+      demand_level: "high"
+      implementation_year: 2030
+  # settings for the UK defined in the "solve_network.py" script    
+  solve:
+    uk_only: true # whether the study is intended to only include the UK. If true, for data flow structure concerns, IE needs to be included in the list of countries above.
+    uk_freeze_base_year_capacities: true # only in the base year: if true, only brownfield capacities are allowed in the UK, i.e., disallowing capacity expansion.
+    uk_freeze_wind_projects: 
+      onwind: [2030,] # we assume that UK wind projects for 2030 are already established and will not be subject to expansion decisions in the model.
+      offwind: [2030,] # we assume that UK wind projects for 2030 are already established and will not be subject to expansion decisions in the model.
+    uk_brownfield_minimum_capacity_factors: # minimum capacity factors of brownfield capacities 
+      CCGT: 
+        2025: 0.35
+    uk_max_electric_heating_share: false # upper limit of electric heating share in the UK applied to the base year for calibration purpose.
+    uk_fixed_electricity_generation_mix: false # fix electricity generation mix to historical levels
+    uk_remove_storage: false
+    uk_deployment_rate_limits: 
+      onwind: 15000 # equivalent to UK's entire onshore wind installments [MW] as per 2025.
+
+  # Further UK assumptions not listed here but are included further down: 
+  # - CO2 emissions targets: search for "local_co2:"
+  # - District heating potential: search for "sector:", then "district_heating:", then "potential" 
+  # - Land transport, EV shares: search for "land_transport:", then "land_transport_electric_share:"
+
+# Long-duration energy storage technologies
+LDES:
+  technologies:
+  - redox flow battery
+  - compressed air
+  - molten salt
+  - liquid air
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration/#snapshots_cf
 snapshots:
@@ -549,7 +608,6 @@ pypsa_eur:
   - "solar-hsat"
   - solar
   - ror
-  - nuclear
   StorageUnit:
   - PHS
   - hydro
@@ -717,10 +775,12 @@ sector:
   agriculture: true
   fossil_fuels: true
   district_heating:
-    potential: 0.6
+    potential: 
+      default: 0.6
+      GB: 0.1
     progress:
       2020: 0.0
-      2025: 0.1
+      2025: 0.0
       2030: 0.25
       2035: 0.4
       2040: 0.55
@@ -820,13 +880,13 @@ sector:
   EV_lower_degree_factor: 0.98
   EV_upper_degree_factor: 0.63
   bev_dsm: true
-  bev_dsm_availability: 0.5
+  bev_dsm_availability: 0.1
   bev_energy: 0.05
   bev_charge_efficiency: 0.9
   bev_charge_rate: 0.011
   bev_avail_max: 0.95
   bev_avail_mean: 0.8
-  v2g: true
+  v2g: false
   land_transport_fuel_cell_share:
     2020: 0
     2025: 0
@@ -838,18 +898,18 @@ sector:
   land_transport_electric_share:
     2020: 0
     2025: 0.05
-    2030: 0.2
-    2035: 0.45
-    2040: 0.7
-    2045: 0.85
+    2030: 0.20
+    2035: 0.52
+    2040: 0.83
+    2045: 0.95
     2050: 1
-  land_transport_ice_share:
+  land_transport_ice_share: # based on logistic fit of Norway and Denmark EV adoption curves
     2020: 1
     2025: 0.95
     2030: 0.8
-    2035: 0.55
-    2040: 0.3
-    2045: 0.15
+    2035: 0.48
+    2040: 0.17
+    2045: 0.05
     2050: 0
   transport_electric_efficiency: 53.19
   transport_fuel_cell_efficiency: 30.003
@@ -962,7 +1022,7 @@ sector:
   co2_sequestration_cost: 30
   co2_sequestration_lifetime: 50
   co2_spatial: true
-  co2_network: true
+  co2_network: true # relevant for A6 in PA
   co2_network_cost_factor: 1
   co2_network_liquefaction: false
   cc_fraction: 0.9
@@ -973,6 +1033,7 @@ sector:
     waste: 1.2
     cement: 1.0
   hydrogen_underground_storage: true
+  hydrogen_depleted_gas_fields: false
   hydrogen_underground_storage_locations:
   - onshore
   - nearshore
@@ -999,6 +1060,7 @@ sector:
   use_methanation_waste_heat: 0.25
   use_fuel_cell_waste_heat: 1
   use_electrolysis_waste_heat: 0.25
+  electrolysis_p_min_pu: false # minimum output of electrolysis units
   electricity_transmission_grid: true
   electricity_distribution_grid: true
   electricity_grid_connection: true
@@ -1032,25 +1094,32 @@ sector:
       efficiency_per_1000km: 1
   H2_network: true
   gas_network: true
+  existing_gas_pipeline_capacities: true
+  existing_gas_storage_capacities: true 
   H2_retrofit: false
   H2_retrofit_capacity_per_CH4: 0.6
   gas_network_connectivity_upgrade: 1
   gas_distribution_grid: true
   gas_distribution_grid_cost_factor: 1.0
+  methanol_distribution_cost: false
+  gas_spatial: true
   biomass_spatial: true
-  biomass_transport: false
+  biomass_transport: true
+  solid_biomass_transport_cost: false
+  biogas_transport_cost: false
   biogas_upgrading: true
   biogas_upgrading_cc: false
   conventional_generation:
     OCGT: gas
     CCGT: gas
+    nuclear: uranium
   biomass_to_liquid: true
-  biomass_to_liquid_cc: false
-  electrobiofuels: true
+  biomass_to_liquid_cc: true
+  electrobiofuels: false 
   biosng: false
   biosng_cc: false
   bioH2: false
-  municipal_solid_waste: false
+  municipal_solid_waste: true
   limit_max_growth:
     enable: false
     factor: 1.3
@@ -1081,14 +1150,27 @@ sector:
     limit: .inf
     limit_sense: "<="
     price:
-      H2: 74
-      NH3: 97
-      methanol: 121
-      gas: 122
-      oil: 125
+      gas: 122 
+  fossil_imports:
+    enable: true 
+    limit: false
+    limit_sense: <=
+    price:
+      gas: 50 # EUR/MWh, adding a more recent value for gas import price from LNG 
+  other_imports:
+    enable: true
+    limit: false
+    limit_sense: <=
+    price: 
+      NH3: 125 # EUR/MWh (0.89 USD per kg ammonia, according to https://businessanalytiq.com/procurementanalytics/index/ammonia-price-index/ 22 september 2026)
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration/#industry_cf
 industry:
+  endogenous_steel: false
+  relocation_steel: false
+  steel_cc: true
+  steel_import: 531 # in €/t (https://www.nature.com/articles/s41467-025-60652-1)
+  steel_transport_cost: 0.1151 # [€/t/km] from https://della.eu/prices/local/ read on the 22st of January 2026
   St_primary_fraction:
     2020: 0.6
     2025: 0.55
@@ -1203,13 +1285,17 @@ costs:
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration/#clustering_cf
 clustering:
   mode: busmap
+  area_threshold: 1000 # km2
+  single_node_regions: # force listed regions to have only one node
+    - GBNI 
+    - GBGL
   administrative:
     level: 1
     countries: {}
   focus_weights: false
   copperplate_regions: []
   build_bidding_zones:
-    remove_islands: false
+    remove_islands: true
     aggregate_to_tyndp: false
   simplify_network:
     to_380: true

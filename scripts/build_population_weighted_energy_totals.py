@@ -44,9 +44,32 @@ if __name__ == "__main__":
         data_years = int(config["energy_totals_year"])
 
     pop_layout = pd.read_csv(snakemake.input.clustered_pop_layout, index_col=0)
+    
+    totals_ungrouped = pd.read_csv(snakemake.input.energy_totals, index_col=[0, 1])
+    totals = totals_ungrouped.loc[idx[:, data_years], :].groupby("country").mean()
 
-    totals = pd.read_csv(snakemake.input.energy_totals, index_col=[0, 1])
-    totals = totals.loc[idx[:, data_years], :].groupby("country").mean()
+    # read UK settings
+    data_years_uk = snakemake.config["uk_settings"].get("uk_energy_balance_year", False)     
+    if data_years_uk and data_years_uk != data_years:
+        
+        uk_year = data_years_uk
+        uk_index = idx["GB", uk_year]
+        
+        while uk_index not in totals_ungrouped.index:
+            uk_year -= 1
+            uk_index = idx["GB", uk_year]
+
+        if uk_year != data_years_uk:
+            logger.info(f"Using UK totals from year {uk_index[1]} instead of {data_years_uk} as specified in the config.")
+
+        if snakemake.wildcards.kind == "heat":
+            totals_UK = totals_ungrouped.loc[idx["GB", uk_year], :]
+            columns_intersect = totals.columns.intersection(totals_UK.index)
+            totals.loc["GB", columns_intersect] = totals_UK.loc[columns_intersect]
+        else:
+            totals_UK = totals_ungrouped.loc[idx["GB", uk_year], :].groupby("country").mean()
+            columns_intersect = totals.columns.intersection(totals_UK.columns)
+            totals.loc["GB", columns_intersect] = totals_UK.loc["GB", columns_intersect]
 
     nodal_totals = totals.loc[pop_layout.ct].fillna(0.0)
     nodal_totals.index = pop_layout.index

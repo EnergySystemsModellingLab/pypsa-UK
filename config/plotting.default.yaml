@@ -44,6 +44,7 @@ plotting:
     - biogas
     - co2 stored
     - co2
+    - kerosene for aviation
     carrier_groups:
       electricity:
       - AC

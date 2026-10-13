@@ -13,6 +13,8 @@ import logging
 import numpy as np
 import pandas as pd
 from pandas import Timedelta as Delta
+import requests
+import os
 
 from scripts._helpers import configure_logging, get_snapshots, set_scenario_config
 
@@ -212,6 +214,42 @@ def manual_adjustment(load, fn_load, countries):
 
     return load
 
+def read_UK_load(years, year_ref):
+
+    # Demand data is from: https://doi.org/10.1016/j.esr.2021.100743 which is available from 2008 and onwards
+    year = years.start.year
+    file_name = f"data/data_UK/ESPENI_{year}.csv"
+
+    # check if file exists, else download from the zenodo repository
+    if not os.path.exists(file_name): 
+        url = "https://zenodo.org/records/18491922/files/espeni.csv?download=1"
+        file = requests.get(url)
+        with open(file_name, "wb") as f:
+            f.write(file.content)
+
+    # read .csv file and format
+    espeni = pd.read_csv(file_name, index_col = 0)
+    column = espeni.columns[espeni.columns.str.contains('ESPENI')][0]
+    espeni.index = pd.to_datetime(espeni.index.str[0:19])
+    espeni.index.name = ""
+    espeni_y = espeni.loc[years, column]
+    espeni_y.name = "ESPENI"
+    espeni_y = espeni_y.resample("h").mean()
+
+    # drop leap day if present
+    espeni_y = espeni_y[~((espeni_y.index.month == 2) & (espeni_y.index.day == 29))]
+
+    # change index to match other time series 
+    espeni_y.index = pd.date_range(start=f"{year_ref}-01-01 00:00:00", 
+                                    end=f"{year_ref}-12-31 23:00:00", 
+                                    freq="h")
+
+    # add North Ireland to the data, as this is not included
+    # https://www.gov.uk/government/statistics/sub-national-electricity-consumption-statistics-in-northern-ireland
+    NI_load = 7182e3 # MWh (using the latest data from 2024)
+    espeni_y += NI_load / len(espeni_y)
+    
+    return espeni_y
 
 def repeat_years(s: pd.Series, years: list) -> pd.Series:
     s = s[~((s.index.month == 2) & (s.index.day == 29))]  # drop leap day
