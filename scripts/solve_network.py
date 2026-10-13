@@ -279,8 +279,8 @@ def update_UK_gas_price(n):
 
     return n
 
-def add_UK_fixed_electricity_generation_mix(n, base_year):
-    investment_year = int(snakemake.wildcards.planning_horizons)
+def add_UK_fixed_electricity_generation_mix(n, base_year, investment_year):
+    investment_year = int(investment_year)
 
     if investment_year > base_year:
         logger.info("Planning year greater than base year, skipping UK minimum capacity factor constraint.")
@@ -375,13 +375,15 @@ def add_UK_fixed_electricity_generation_mix(n, base_year):
 
         logger.info(f"Added generation limits for {carrier} in UK: {c_range}% of total electricity generation")
 
-def add_UK_brownfield_minimum_capacity_factors(n, capacity_factors, base_year):
+def add_UK_brownfield_minimum_capacity_factors(
+    n, capacity_factors, base_year, investment_year
+):
 
     # For example:
     # CCGT: 0.5 # https://wattdirection.substack.com/p/uk-combined-cycle-gas-power-stations-748
     # nuclear: 0.7 # https://assets.publishing.service.gov.uk/media/5a75a748e5274a545822d2b9/Nuclear_Capacity_in_the_UK.pdf 
 
-    investment_year = int(snakemake.wildcards.planning_horizons)
+    investment_year = int(investment_year)
 
     T = len(n.snapshots)
     for tech, minimum_capacity_factor in capacity_factors.items():
@@ -428,9 +430,8 @@ def add_UK_brownfield_minimum_capacity_factors(n, capacity_factors, base_year):
         # log
         logger.info(f"Added minimum capacity factor constraint for UK {tech}: {minimum_capacity_factor}")
 
-def add_UK_deployment_rate_limits(n, deployment_rate_limits, base_year):
-
-    investment_year = int(snakemake.wildcards.planning_horizons)
+def add_UK_deployment_rate_limits(n, deployment_rate_limits, base_year, investment_year):
+    investment_year = int(investment_year)
 
     if not investment_year > base_year:
         logger.info("Planning year equals base year where capacities are fixed, and, thus, deployment rate limits are not needed.")
@@ -523,7 +524,7 @@ def add_split_co2_constraints(n: pypsa.Network, local_co2: dict) -> None:
     nhours = n.snapshot_weightings.generators.sum()
     nyears = nhours / 8760
 
-    investment_year = int(snakemake.wildcards.planning_horizons)
+    investment_year = int(snakemake.wildcards.horizon)
     local_co2_regions = list(local_co2.keys())
 
     expr = n.optimize.expressions.energy_balance(
@@ -1744,8 +1745,8 @@ def extra_functionality(
         limit_sense = config["sector"]["other_imports"]["limit_sense"]
         add_import_limit_constraint(n, snapshots, "other", limit_sense, limit)
 
-    base_year = snakemake.config["scenario"]["planning_horizons"][0]
-    investment_year = snakemake.wildcards.planning_horizons
+    base_year = snakemake.params.planning_horizons[0]
+    investment_year = int(snakemake.wildcards.horizon)
     uk_settings = snakemake.params.uk_settings
 
     if uk_settings["uk_max_electric_heating_share"]:
@@ -1754,15 +1755,19 @@ def extra_functionality(
 
     if uk_settings["uk_fixed_electricity_generation_mix"]:
         logger.info("Adding UK fixed electricity generation mix.")
-        add_UK_fixed_electricity_generation_mix(n, base_year)
+        add_UK_fixed_electricity_generation_mix(n, base_year, investment_year)
     
     if isinstance(uk_settings["uk_brownfield_minimum_capacity_factors"], dict):
         capacity_factors = uk_settings["uk_brownfield_minimum_capacity_factors"]
-        add_UK_brownfield_minimum_capacity_factors(n, capacity_factors, base_year)
+        add_UK_brownfield_minimum_capacity_factors(
+            n, capacity_factors, base_year, investment_year
+        )
 
     if isinstance(uk_settings["uk_deployment_rate_limits"], dict):
         logger.info("Adding UK deployment rates.")
-        add_UK_deployment_rate_limits(n, uk_settings["uk_deployment_rate_limits"], base_year)
+        add_UK_deployment_rate_limits(
+            n, uk_settings["uk_deployment_rate_limits"], base_year, investment_year
+        )
 
     uk_settings_prepare = snakemake.params.uk_settings_prepare
     df_keadby = snakemake.input.keadby_h2_demand
@@ -1771,7 +1776,7 @@ def extra_functionality(
         add_utilization_constraint_keadby(n, df_keadby, uk_settings_prepare, investment_year)
         add_ammonia_demand(n, df_billingham, uk_settings_prepare, investment_year)
 
-    if isinstance(config["local_co2"], dict):
+    if isinstance(config.get("local_co2", False), dict):
         logger.info("Adding local CO2 constraint.")
         add_split_co2_constraints(n, config["local_co2"])
 
@@ -1823,7 +1828,35 @@ def save_duals(n: pypsa.Network) -> None:
     Save dual values of CO2 constraints to CSV files.
     """
     # model specs
-    investment_year = snakemake.wildcards.planning_horizons
+    investment_year = snakemake.wildcards.horizon
+
+    constraints = pd.Series(n.model.constraints)
+    co2_constraints = constraints.loc[constraints.str.contains("co2", case=False)]
+    heating_constraints = constraints.loc[
+        constraints.str.contains("maximum_electric_heating_UK", case=False)
+    ]
+    keadby_constraints = constraints.loc[
+        constraints.str.contains("keadby", case=False)
+    ]
+
+    for constraint_name in pd.concat(
+        [co2_constraints, heating_constraints, keadby_constraints]
+    ).unique():
+        dual = n.model.dual[constraint_name]
+        df = pd.DataFrame(dual.values)
+        coordinates = list(dual.coords)
+        if len(coordinates) == 1:
+            df.index = dual.coords[coordinates[0]].values
+            df.index.name = coordinates[0]
+        elif len(coordinates) == 2:
+            df.index = dual.coords[coordinates[0]].values
+            df.columns = dual.coords[coordinates[1]].values
+            df.index.name = coordinates[0]
+            df.columns.name = coordinates[1]
+        df.to_csv(
+            f"results/{snakemake.params.RDIR}/networks/"
+            f"{constraint_name}_{investment_year}.csv"
+        )
 
 def collect_kwargs(
     config: dict,

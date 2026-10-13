@@ -987,17 +987,17 @@ rule build_salt_cavern_potentials:
 rule build_depleted_gas_field_potentials:
     input:
         depleted_gas_fields="data/data_UK/secret/UK_depleted_gas_fields.csv",
-        regions_onshore=resources("regions_onshore_base_s_{clusters}.geojson"),
-        regions_offshore=resources("regions_offshore_base_s_{clusters}.geojson"),
+        regions_onshore=resources("onshore_regions.geojson"),
+        regions_offshore=resources("offshore_regions.geojson"),
     output:
-        clustered_depleted_gas_fields=resources("depleted_gas_field_potentials_s_{clusters}.csv"),
+        clustered_depleted_gas_fields=resources("depleted_gas_field_potentials.csv"),
     threads: 1
     resources:
         mem_mb=2000,
     log:
-        logs("build_depleted_gas_field_potentials_s_{clusters}.log"),
+        logs("build_depleted_gas_field_potentials.log"),
     benchmark:
-        benchmarks("build_depleted_gas_field_potentials_s_{clusters}")
+        benchmarks("build_depleted_gas_field_potentials")
     conda:
         "../envs/environment.yaml"
     script:
@@ -1126,6 +1126,7 @@ rule build_industrial_distribution_key:
         refineries_supplement="data/refineries-noneu.csv",
     output:
         industrial_distribution_key=resources("industrial_distribution_key.csv"),
+        uk_ammonia_demand=resources("uk_ammonia_demand.csv"),
     log:
         logs("build_industrial_distribution_key.log"),
     benchmark:
@@ -1138,6 +1139,7 @@ rule build_industrial_distribution_key:
             "industry", "hotmaps_locate_missing", default=False
         ),
         countries=config_provider("countries"),
+        uk_settings=config_provider("uk_settings", "data"),
     script:
         scripts("build_industrial_distribution_key.py")
 
@@ -1208,6 +1210,7 @@ rule build_industrial_energy_demand_per_country_today:
         countries=config_provider("countries"),
         industry=config_provider("industry"),
         ammonia=config_provider("sector", "ammonia", default=False),
+        uk_settings=config_provider("uk_settings", "data"),
     script:
         scripts("build_industrial_energy_demand_per_country_today.py")
 

@@ -1676,7 +1676,7 @@ def add_electricity_grid_connection(n, costs):
     )
     n.generators.loc[gens, "capital_cost"] += costs.at[name, "capital_cost"]
 
-def add_ldes_storage(n, options):
+def add_ldes_storage(n, options, costs):
 
     techs_stores_dict = {"redox flow battery":"Vanadium-Redox-Flow-store",
                          "compressed air": "Compressed-Air-Adiabatic-store",
@@ -1753,12 +1753,11 @@ def add_h2_gas_infrastructure(
     pop_layout,
     h2_cavern_file,
     cavern_types,
-    depleted_gas_fields_file,
     clustered_gas_network_file,
     gas_input_nodes,
     spatial,
     options,
-    uk_settings,
+    depleted_gas_fields_file=None,
 ):
     """
     Add hydrogen and gas infrastructure to the network.
@@ -1907,11 +1906,12 @@ def add_h2_gas_infrastructure(
             lifetime=costs.at["hydrogen storage underground", "lifetime"],
         )
 
-    h2_depleted_gas_fields = pd.read_csv(depleted_gas_fields_file, index_col=0) 
-    if (
-        not h2_depleted_gas_fields.empty
-        and options["hydrogen_depleted_gas_fields"]
-    ):
+    h2_depleted_gas_fields = (
+        pd.read_csv(depleted_gas_fields_file, index_col=0)
+        if depleted_gas_fields_file
+        else pd.DataFrame()
+    )
+    if not h2_depleted_gas_fields.empty and options["hydrogen_depleted_gas_fields"]:
         # convert TWh to MWh
         h2_depleted_gas_fields = h2_depleted_gas_fields * 1e6
 
@@ -5318,8 +5318,10 @@ def add_industry(
             p_set=p_set,
         )
 
-        # update UK ammonia load 
-        uk_ammonia_demand = pd.read_csv(snakemake.input.uk_ammonia_demand, index_col=0).query("Country == 'United Kingdom'")
+        # update UK ammonia load
+        uk_ammonia_demand = pd.read_csv(
+            snakemake.input.uk_ammonia_demand, index_col=0
+        ).query("Country == 'United Kingdom'")
 
         NH3_LHV = 5.2 # MWh per tonne
         uk_ammonia_demand_MWh = uk_ammonia_demand["Ammonia [kt/a]"] * 1e3 * NH3_LHV # annual demand in MWh
@@ -6739,7 +6741,7 @@ def map_planned_projects_to_regions(df,
 
     return gdf_joined
 
-def prepare_data_for_planned_projects(regions_file):
+def prepare_data_for_planned_projects(regions_file, planned_projects_file):
     regions = gpd.read_file(regions_file)
 
     # coordinates of counties in the North East region of UK:
@@ -6761,8 +6763,8 @@ def prepare_data_for_planned_projects(regions_file):
                                 "Sunderland": (54.9040409454417, -1.3860249424085647),}
 
     # read excel sheet
-    df_infrastructure = pd.read_excel(snakemake.input.planned_hydrogen_projects, sheet_name="Infrastructure")
-    df_industry_demand = pd.read_excel(snakemake.input.planned_hydrogen_projects, sheet_name="all_spatial_demand_long")
+    df_infrastructure = pd.read_excel(planned_projects_file, sheet_name="Infrastructure")
+    df_industry_demand = pd.read_excel(planned_projects_file, sheet_name="all_spatial_demand_long")
 
     # Read data on infrastructure
     df_infrastructure_h2_pipeline = df_infrastructure.query("Category == 'H2 pipeline'").copy()
@@ -6894,7 +6896,9 @@ def reduce_dimensions_for_planned_projects(df_prepared):
 
     return df_reduced
 
-def add_planned_hydrogen_projects(n, planned_projects_settings, regions_onshore, year):
+def add_planned_hydrogen_projects(
+    n, planned_projects_settings, regions_onshore, year, planned_projects_file
+):
 
     scenario = planned_projects_settings["scenario"]
     demand_level = planned_projects_settings["demand_level"]
@@ -6904,7 +6908,9 @@ def add_planned_hydrogen_projects(n, planned_projects_settings, regions_onshore,
     stores = getattr(n, "stores")
     loads = getattr(n, "loads")
 
-    df_prepared = prepare_data_for_planned_projects(regions_onshore)
+    df_prepared = prepare_data_for_planned_projects(
+        regions_onshore, planned_projects_file
+    )
     df_reduced = reduce_dimensions_for_planned_projects(df_prepared)
 
     ########### Add H2 pipelines to the network ############
@@ -7068,7 +7074,8 @@ def add_planned_hydrogen_projects(n, planned_projects_settings, regions_onshore,
 
 def limit_UK_transmission_lines(n, investment_year, uk_transmission_limits):
 
-    maxext = uk_transmission_limits.get(investment_year, False)
+    year = int(investment_year)
+    maxext = uk_transmission_limits.get(year, False)
 
     if maxext is False:
         return
@@ -7104,12 +7111,14 @@ def main(
     costs: pd.DataFrame,
     nyears: float,
     current_horizon: int,
+    project_demand_outputs=None,
 ) -> None:
     logger.info("Adding sector components")
     foresight = params.foresight
 
     options = params.sector
     cf_industry = params.industry
+    uk_settings_prepare = params.uk_settings_prepare
 
     investment_year = current_horizon
 
@@ -7184,11 +7193,11 @@ def main(
         pop_layout=pop_layout,
         h2_cavern_file=inputs.h2_cavern,
         cavern_types=options["hydrogen_underground_storage_locations"],
+        depleted_gas_fields_file=inputs.depleted_gas_fields,
         clustered_gas_network_file=inputs.clustered_gas_network,
         gas_input_nodes=gas_input_nodes,
         spatial=spatial,
         options=options,
-        uk_settings = uk_settings_prepare,
     )
 
     # Hydrogen already implemented in add_h2_gas_infrastructure
@@ -7279,6 +7288,8 @@ def main(
 
     if options["ammonia"]:
         add_ammonia(n, options, costs, pop_layout, spatial, cf_industry)
+
+    add_ldes_storage(n, params.ldes, costs)
 
     if options["methanol"]:
         add_methanol(n, costs, options=options, spatial=spatial, pop_layout=pop_layout)
@@ -7379,6 +7390,25 @@ def main(
 
     if options["electricity_grid_connection"]:
         add_electricity_grid_connection(n, costs)
+
+    planned_projects = uk_settings_prepare["planned_hydrogen_projects"]
+    if planned_projects and project_demand_outputs:
+        add_planned_hydrogen_projects(
+            n,
+            planned_projects,
+            inputs.onshore_regions,
+            current_horizon,
+            inputs.planned_hydrogen_projects,
+        )
+    elif project_demand_outputs:
+        for output in project_demand_outputs:
+            pd.DataFrame().to_csv(output, index=False)
+
+    limit_UK_transmission_lines(
+        n,
+        current_horizon,
+        uk_settings_prepare["uk_transmission_limits"],
+    )
 
     for k, v in options["transmission_efficiency"].items():
         if k in options["transmission_efficiency"]["enable"]:

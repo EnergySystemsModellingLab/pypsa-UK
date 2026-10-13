@@ -37,6 +37,7 @@ from scripts.add_electricity import (
     sanitize_carriers,
     sanitize_locations,
 )
+from scripts import add_existing_baseyear as existing_baseyear_module
 from scripts.add_existing_baseyear import main as add_existing_capacities
 from scripts.prepare_network import (
     apply_co2_budget_constraints,
@@ -46,9 +47,8 @@ from scripts.prepare_network import (
 from scripts.prepare_network import main as prepare_network_for_solving
 from scripts.prepare_perfect_foresight import apply_phase_outs
 from scripts.prepare_perfect_foresight import main as prepare_perfect_foresight
-from scripts.prepare_sector_network import (
-    main as add_sector_components,
-)
+from scripts import prepare_sector_network as sector_network_module
+from scripts.prepare_sector_network import main as add_sector_components
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +71,8 @@ if __name__ == "__main__":
     config = snakemake.config
     params = snakemake.params
     inputs = snakemake.input
+    existing_baseyear_module.snakemake = snakemake
+    sector_network_module.snakemake = snakemake
 
     current_horizon = int(snakemake.wildcards.horizon)
     horizons = params.horizons
@@ -95,7 +97,23 @@ if __name__ == "__main__":
     add_electricity_components(n, inputs, params, costs)
 
     if sector_mode:
-        add_sector_components(n, inputs, params, costs, nyears, current_horizon)
+        add_sector_components(
+            n,
+            inputs,
+            params,
+            costs,
+            nyears,
+            current_horizon,
+            project_demand_outputs=(
+                snakemake.output.keadby_h2_demand,
+                snakemake.output.billingham_h2_demand,
+            ),
+        )
+    else:
+        import pandas as pd
+
+        pd.DataFrame().to_csv(snakemake.output.keadby_h2_demand, index=False)
+        pd.DataFrame().to_csv(snakemake.output.billingham_h2_demand, index=False)
 
     apply_temporal_aggregation(n, inputs, params)
 
@@ -110,6 +128,17 @@ if __name__ == "__main__":
             adjust_renewable_capacity_limits(
                 n, str(current_horizon), renewable_carriers
             )
+    else:
+        import pandas as pd
+
+        pd.DataFrame().to_csv(
+            snakemake.output.uk_brownfield_power_plant_under_construction,
+            index=False,
+        )
+        pd.DataFrame().to_csv(
+            snakemake.output.uk_brownfield_storage,
+            index=False,
+        )
 
     prepare_network_for_solving(n, inputs, params, costs, nyears, current_horizon)
 

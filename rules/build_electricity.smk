@@ -701,6 +701,7 @@ rule simplify_network:
         mem_mb=12000,
     params:
         countries=config_provider("countries"),
+        single_node_regions=config_provider("clustering", "single_node_regions"),
         mode=config_provider("clustering", "mode"),
         administrative=config_provider("clustering", "administrative"),
         simplify_network=config_provider("clustering", "simplify_network"),

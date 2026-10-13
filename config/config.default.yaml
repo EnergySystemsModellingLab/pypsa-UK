@@ -1050,6 +1050,8 @@ sector:
     biomass_to_methanol: true
     biomass_to_methanol_cc: false
   ammonia: true
+  ammonia_turbine: true
+  ammonia_cracker: false
   min_part_load_electrolysis: 0
   min_part_load_fischer_tropsch: 0.5
   min_part_load_methanolisation: 0.3
@@ -1285,6 +1287,9 @@ costs:
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration/#clustering_cf
 clustering:
   mode: busmap
+  single_node_regions:
+  - GBNI
+  - GBGL
   area_threshold: 1000 # km2
   single_node_regions: # force listed regions to have only one node
     - GBNI 

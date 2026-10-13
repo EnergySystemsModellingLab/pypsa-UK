@@ -821,6 +821,12 @@ class SectorConfig(BaseModel):
         True,
         description='Add ammonia as a carrier. It can be either true (copperplated NH3), false (no NH3 carrier) or "regional" (regionalised NH3 without network).',
     )
+    ammonia_turbine: bool = Field(
+        True, description="Add ammonia-fuelled turbines for re-electrification."
+    )
+    ammonia_cracker: bool = Field(
+        False, description="Add ammonia crackers for hydrogen production."
+    )
     min_part_load_electrolysis: float = Field(
         0, description="The minimum unit dispatch (`p_min_pu`) for electrolysis."
     )

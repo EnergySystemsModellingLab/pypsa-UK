@@ -1087,7 +1087,6 @@ if __name__ == "__main__":
     mode = params.mode
     administrative = params.administrative
     countries = params.countries
-    uk_settings = params.uk_settings
     n_clusters = int(snakemake.wildcards.clusters)
     solver_name = snakemake.config["solving"]["solver"]["name"]
 

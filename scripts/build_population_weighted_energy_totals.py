@@ -49,7 +49,9 @@ if __name__ == "__main__":
     totals = totals_ungrouped.loc[idx[:, data_years], :].groupby("country").mean()
 
     # read UK settings
-    data_years_uk = snakemake.config["uk_settings"].get("uk_energy_balance_year", False)     
+    data_years_uk = snakemake.config["uk_settings"]["data"].get(
+        "uk_energy_balance_year", False
+    )
     if data_years_uk and data_years_uk != data_years:
         
         uk_year = data_years_uk

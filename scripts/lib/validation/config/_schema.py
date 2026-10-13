@@ -39,6 +39,7 @@ from scripts.lib.validation.config.transformers import TransformersConfig
 from scripts.lib.validation.config.transmission_projects import (
     TransmissionProjectsConfig,
 )
+from scripts.lib.validation.config.uk import UKSettingsConfig
 
 
 class LoggingConfig(ConfigModel):
@@ -72,6 +73,19 @@ class RemoteConfig(ConfigModel):
     path: str = Field(
         "",
         description="Optionally specify the file path within the remote cluster to be synchronized.",
+    )
+
+
+class LDESConfig(ConfigModel):
+    """Configuration for long-duration energy storage technologies."""
+
+    technologies: list[str] = Field(
+        default_factory=lambda: [
+            "redox flow battery",
+            "compressed air",
+            "molten salt",
+            "liquid air",
+        ]
     )
 
 
@@ -132,6 +146,11 @@ class ConfigSchema(BaseModel):
         default_factory=CountriesConfig,
         description="European countries defined by their Two-letter country codes (ISO 3166-1) which should be included in the energy system model.",
     )
+    uk_settings: UKSettingsConfig = Field(
+        default_factory=UKSettingsConfig,
+        description="Configuration for UK-specific data, preparation, and solving options.",
+    )
+    LDES: LDESConfig = Field(default_factory=LDESConfig)
     snapshots: SnapshotsConfig = Field(
         default_factory=SnapshotsConfig,
         description="Configuration for the time period snapshots.",
