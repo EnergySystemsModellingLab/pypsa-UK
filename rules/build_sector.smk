@@ -985,6 +985,7 @@ rule build_salt_cavern_potentials:
         scripts("build_salt_cavern_potentials.py")
 
 rule build_depleted_gas_field_potentials:
+    """Builds regional hydrogen storage potentials from depleted gas fields."""
     input:
         depleted_gas_fields="data/data_UK/secret/UK_depleted_gas_fields.csv",
         regions_onshore=resources("onshore_regions.geojson"),
