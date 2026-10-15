@@ -210,6 +210,13 @@ class TestUKConfig:
             == "data/regions.geojson"
         )
 
+    def test_validates_import_limits_by_country(self):
+        config = validate_config(
+            {"sector": {"imports": {"enable": True, "limit": {"GB": 2.5}}}}
+        )
+
+        assert config.sector.imports.limit == {"GB": 2.5}
+
 
 class TestValidateScenarios:
     base = {"foresight": "overnight", "planning_horizons": [2050]}

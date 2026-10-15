@@ -376,8 +376,9 @@ class _ImportsConfig(BaseModel):
     enable: bool = Field(
         False, description="Add option to include renewable energy imports."
     )
-    limit: float = Field(
-        float("inf"), description="Maximum allowed renewable energy imports (TWh)."
+    limit: float | dict[str, float] | bool = Field(
+        float("inf"),
+        description="Maximum allowed renewable energy imports (TWh), globally or per country.",
     )
     limit_sense: str = Field("<=", description="Sense of the limit.")
     price: dict[str, float] = Field(

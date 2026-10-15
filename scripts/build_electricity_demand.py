@@ -223,7 +223,9 @@ def read_UK_load(years, year_ref):
     # check if file exists, else download from the zenodo repository
     if not os.path.exists(file_name): 
         url = "https://zenodo.org/records/18491922/files/espeni.csv?download=1"
-        file = requests.get(url)
+        file = requests.get(url, timeout=60)
+        file.raise_for_status()
+        os.makedirs(os.path.dirname(file_name), exist_ok=True)
         with open(file_name, "wb") as f:
             f.write(file.content)
 
@@ -239,16 +241,27 @@ def read_UK_load(years, year_ref):
     # drop leap day if present
     espeni_y = espeni_y[~((espeni_y.index.month == 2) & (espeni_y.index.day == 29))]
 
-    # change index to match other time series 
-    espeni_y.index = pd.date_range(start=f"{year_ref}-01-01 00:00:00", 
-                                    end=f"{year_ref}-12-31 23:00:00", 
-                                    freq="h")
+    # change index to match other time series
+    espeni_index = pd.date_range(
+        start=f"{year_ref}-01-01 00:00:00",
+        end=f"{year_ref}-12-31 23:00:00",
+        freq="h",
+    )
+    espeni_index = espeni_index[
+        ~((espeni_index.month == 2) & (espeni_index.day == 29))
+    ]
+    if len(espeni_index) != len(espeni_y):
+        raise ValueError(
+            f"ESPENI data for {year} has {len(espeni_y)} hourly values; "
+            f"expected {len(espeni_index)} after removing leap day."
+        )
+    espeni_y.index = espeni_index
 
     # add North Ireland to the data, as this is not included
     # https://www.gov.uk/government/statistics/sub-national-electricity-consumption-statistics-in-northern-ireland
     NI_load = 7182e3 # MWh (using the latest data from 2024)
     espeni_y += NI_load / len(espeni_y)
-    
+
     return espeni_y
 
 def repeat_years(s: pd.Series, years: list) -> pd.Series:
@@ -256,6 +269,26 @@ def repeat_years(s: pd.Series, years: list) -> pd.Series:
     return pd.concat(
         [s.set_axis(s.index.map(lambda t: t.replace(year=y))) for y in years]
     )
+
+
+def replace_uk_load(
+    load: pd.DataFrame, snapshots: pd.DatetimeIndex, demand_year: int
+) -> pd.DataFrame:
+    """Replace GB demand with an ESPENI profile aligned to the snapshot calendar year(s)."""
+    target_years = sorted(pd.Index(snapshots.year).unique())
+    uk_profile = read_UK_load(
+        slice(str(demand_year), str(demand_year)), year_ref=target_years[0]
+    )
+    uk_load = repeat_years(uk_profile, target_years).reindex(snapshots)
+    uk_load = uk_load.combine_first(load.loc[snapshots, "GB"])
+    if uk_load.isna().any():
+        missing = uk_load.index[uk_load.isna()]
+        raise ValueError(
+            "The national electricity-demand data do not cover the UK snapshot "
+            f"timestamps, including {missing[0]}."
+        )
+    load.loc[snapshots, "GB"] = uk_load
+    return load
 
 
 def reindex_to_snapshots(
@@ -371,6 +404,10 @@ if __name__ == "__main__":
 
     fixed_year = snakemake.params["load"].get("fixed_year", False)
     load = reindex_to_snapshots(load, snapshots, fixed_year)
+
+    uk_demand_year = snakemake.params.uk_data.get("uk_electricity_demand_year")
+    if "GB" in countries and uk_demand_year:
+        load = replace_uk_load(load, snapshots, uk_demand_year)
 
     assert not load.isna().any().any(), (
         "Load data contains nans. Adjust the parameters "

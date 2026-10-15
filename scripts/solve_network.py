@@ -35,7 +35,7 @@ from linopy.constants import SolverStatus, TerminationCondition
 from linopy.remote.oetc import OetcCredentials, OetcHandler, OetcSettings
 from pypsa.descriptors import get_activity_mask
 
-from scripts.prepare_sector_network import determine_emission_sectors, build_carbon_budget, add_co2limit
+from scripts.prepare_sector_network import determine_emission_sectors
 from scripts._benchmark import memory_logger
 from scripts._helpers import (
     PYPSA_V1,
@@ -56,30 +56,47 @@ else:
 class ObjectiveValueError(Exception):
     pass
 
-def calculate_co2_limit(investment_year, options, countries):
-    co2_budget = snakemake.params.co2_budget
-    if isinstance(co2_budget, str) and co2_budget.startswith("cb"):
-        fn = "results/" + snakemake.params.RDIR + "/csvs/carbon_budget_distribution.csv"
-        if not os.path.exists(fn):
-            emissions_scope = snakemake.params.emissions_scope
-            input_co2 = snakemake.input.co2
+def calculate_co2_limit(
+    investment_year: int,
+    co2_budget: dict,
+    regional_emissions: float,
+    total_emissions: float,
+) -> float | None:
+    """Return the annual CO2 allowance in tonnes for a regional group."""
+    limit = get(co2_budget["upper"], investment_year)
+    if limit is None:
+        return None
+    if co2_budget["relative"]:
+        return regional_emissions * limit
+    if total_emissions == 0:
+        return 0.0
+    return limit * 1e9 * regional_emissions / total_emissions
 
-            build_carbon_budget(
-                co2_budget,
-                snakemake.input.eurostat,
-                fn,
-                emissions_scope,
-                input_co2,
-                options,
-                countries,
-                snakemake.params.planning_horizons,
+
+def valid_local_co2_regions(
+    local_co2: dict,
+    co2_totals: pd.DataFrame,
+    investment_year: int,
+    countries: list[str],
+) -> list[str]:
+    """Return only configured local-CO2 regions with baseline data and a current limit."""
+    valid = []
+    for region, limits in local_co2.items():
+        if (
+            region in countries
+            and region in co2_totals.index
+            and investment_year in limits
+        ):
+            valid.append(region)
+        else:
+            logger.info(
+                "Region %s has no applicable local CO2 constraint for %s; "
+                "including it in the collective budget.",
+                region,
+                investment_year,
             )
-        co2_cap = pd.read_csv(fn, index_col=0).squeeze()
-        limit = co2_cap.loc[investment_year]
-    else:
-        limit = get(co2_budget, investment_year)
+    return valid
 
-    return limit
 
 # TODO: move to compose_network
 def add_land_use_constraint(n: pypsa.Network) -> None:
@@ -507,25 +524,26 @@ def add_UK_deployment_rate_limits(n, deployment_rate_limits, base_year, investme
 
 def add_split_co2_constraints(n: pypsa.Network, local_co2: dict) -> None:
     """
-    This function adds local net co2 emissions constraints, according to the limits 
-    specified in the "local_co2" variable in the config file. 
-    For the remaining countries not listed, a collective co2 emisssions constraint is 
-    added, with the limit equivalent to the carbon budget "co2_budget" defined in the 
-    config file. 
-    The current version excludes the region specified in the local_co2 from the collective 
-    constraint. Later, we should make it an option of either including or excluding the region
-    in the collective constraint.
+    Add local CO2 caps and a collective cap for the remaining countries.
+
+    Regions with no baseline data or no limit for the current horizon remain
+    included in the collective budget.
     """
     co2_totals_file = snakemake.input.co2_totals
     co2_totals = 1e6 * pd.read_csv(co2_totals_file, index_col=0) # convert Mt to tCO2
 
     options = snakemake.params.sector
+    co2_budget = snakemake.params.co2_budget
     sectors = determine_emission_sectors(options)
     nhours = n.snapshot_weightings.generators.sum()
     nyears = nhours / 8760
 
     investment_year = int(snakemake.wildcards.horizon)
-    local_co2_regions = list(local_co2.keys())
+    all_countries = snakemake.params.countries
+    sectors = co2_totals.columns.intersection(sectors)
+    local_co2_regions = valid_local_co2_regions(
+        local_co2, co2_totals, investment_year, all_countries
+    )
 
     expr = n.optimize.expressions.energy_balance(
                                                 bus_carrier="co2",
@@ -533,14 +551,8 @@ def add_split_co2_constraints(n: pypsa.Network, local_co2: dict) -> None:
                                                 )
 
     # add local CO2 emissions constraints
-    i = 0
+    mask_merged = None
     for region in local_co2_regions:
-
-        if (not region in co2_totals.index) or (investment_year not in local_co2[region].keys()):
-            local_co2_regions.remove(region)
-            logger.info(f"Region {region} specified in local_co2 not found in co2_totals, skipping local CO2 constraint for this region.")
-            continue
-        
         # calculating the net CO2 emissions allowance for the country
         limit = local_co2[region][investment_year]
 
@@ -549,7 +561,7 @@ def add_split_co2_constraints(n: pypsa.Network, local_co2: dict) -> None:
         logger.info(f"Net CO2 emissions cap for {region}: {net_co2_allowance}")
 
         # Add expression containing all CO2 sources and sinks attached to the country
-        mask = expr.coords["Link"].str.contains(region)
+        mask = expr.coords["Link"].str.contains(re.escape(region))
         expr_c_group = expr.sel(Link=mask, group = 0) # group 0 corresponds to links
 
         lhs = expr_c_group.sum()
@@ -560,24 +572,30 @@ def add_split_co2_constraints(n: pypsa.Network, local_co2: dict) -> None:
             name="local co2 emissions constraint " + region ,
         )
 
-        if i == 0:
-            mask_merged = mask.copy()
-        else:
-            mask_merged = mask_merged | mask
-
-        i += 1
+        mask_merged = mask if mask_merged is None else mask_merged | mask
 
     # Add global co2 emissions constraint
-    all_countries = snakemake.params.countries
     collective = [x for x in all_countries if x not in local_co2_regions]
-    limit = calculate_co2_limit(investment_year, options, collective)
+    collective = [x for x in collective if x in co2_totals.index]
+    if not collective:
+        return
+
     co2_1990 = co2_totals.loc[collective, sectors].sum().sum()
-    net_co2_allowance = co2_1990 * limit * nyears
+    total_co2_1990 = co2_totals.loc[
+        co2_totals.index.intersection(all_countries), sectors
+    ].sum().sum()
+    annual_allowance = calculate_co2_limit(
+        investment_year, co2_budget, co2_1990, total_co2_1990
+    )
+    if annual_allowance is None:
+        logger.info("No collective CO2 budget configured for %s.", investment_year)
+        return
+    net_co2_allowance = annual_allowance * nyears
     logger.info(f"Collective CO2 emissions budget for {len(collective)} countries: {net_co2_allowance}")
 
-    try:
+    if mask_merged is not None:
         expr_collective_group = expr.sel(Link=~mask_merged, group = 0)
-    except:
+    else:
         expr_collective_group = expr.sel(group = 0)
 
     lhs = expr_collective_group.sum()
@@ -1601,7 +1619,13 @@ def add_flexible_egs_constraint(n):
     )
 
 
-def add_import_limit_constraint(n: pypsa.Network, sns: pd.DatetimeIndex, type: str, limit_sense: str = "<=", limit: dict | None = None) -> None:
+def add_import_limit_constraint(
+    n: pypsa.Network,
+    sns: pd.DatetimeIndex,
+    type: str,
+    limit_sense: str = "<=",
+    limit: float | dict | bool | None = None,
+) -> None:
     """
     Add constraint for limiting green energy imports (synthetic and biomass).
     Does not include fossil fuel imports.
@@ -1613,32 +1637,74 @@ def add_import_limit_constraint(n: pypsa.Network, sns: pd.DatetimeIndex, type: s
     import_links = n.links.loc[n.links.carrier.str.contains("import")].index
     import_gens = n.generators.loc[n.generators.carrier.str.contains("import")].index
 
-    config = n.config
-    limit = config["sector"]["imports"]["limit"]
-    limit_sense = config["sector"]["imports"]["limit_sense"]
-
-    if (import_links.empty and import_gens.empty) or not np.isfinite(limit):
+    if import_links.empty and import_gens.empty:
         return
 
+    senses = {"<=": "<=", ">=": ">=", "==": "=", "=": "="}
+    if limit_sense not in senses:
+        raise ValueError(f"Unsupported import limit sense: {limit_sense}")
+
     if isinstance(limit, dict):
+        limits = limit.items()
+    elif isinstance(limit, (int, float, np.number)) and not isinstance(
+        limit, (bool, np.bool_)
+    ):
+        limits = [(None, limit)]
+    else:
+        return
 
-        for c, lim in limit.items():
+    for country, value in limits:
+        if (
+            isinstance(value, (bool, np.bool_))
+            or not isinstance(value, (int, float, np.number))
+            or not np.isfinite(value)
+        ):
+            continue
 
-            import_gens_c = import_gens[import_gens.str.contains(c)]
-            import_links_c = import_links[import_links.str.contains(c)]
+        if country is None:
+            import_gens_c = import_gens
+            import_links_c = import_links
+        else:
+            country_pattern = re.escape(str(country))
+            import_gens_c = (
+                import_gens[
+                    import_gens.str.contains(country_pattern, regex=True)
+                ]
+                if not import_gens.empty
+                else import_gens
+            )
+            import_links_c = (
+                import_links[
+                    import_links.str.contains(country_pattern, regex=True)
+                ]
+                if not import_links.empty
+                else import_links
+            )
+        if import_links_c.empty and import_gens_c.empty:
+            continue
 
-            # everything needs to be in MWh_fuel
-            eff = n.links.loc[import_links_c, "efficiency"]
+        # everything needs to be in MWh_fuel
+        eff = n.links.loc[import_links_c, "efficiency"]
 
+        if import_gens_c.empty:
+            lhs = 0
+        else:
             p_gens = n.model["Generator-p"].loc[sns, import_gens_c]
+            lhs = (p_gens * weightings).sum()
+        if not import_links_c.empty:
             p_links = n.model["Link-p"].loc[sns, import_links_c]
-
-            lhs = (p_gens * weightings).sum() + (p_links * eff * weightings).sum()
-
-            rhs = lim * 1e6 * nyears
-
-            n.model.add_constraints(lhs, limit_sense, rhs, name=f"{type}_import_limit_{c}")
-            logger.info(f"Added {type} import limit constraint for {c} with {limit_sense} {lim} TWh_fuel/year")
+            lhs += (p_links * eff * weightings).sum()
+        rhs = value * 1e6 * nyears
+        suffix = f"_{country}" if country is not None else ""
+        name = f"{type}_import_limit{suffix}"
+        n.model.add_constraints(lhs, senses[limit_sense], rhs, name=name)
+        logger.info(
+            "Added %s import limit constraint%s with %s %s TWh_fuel/year",
+            type,
+            f" for {country}" if country is not None else "",
+            limit_sense,
+            value,
+        )
 
 
 def add_co2_atmosphere_constraint(n, snapshots):
@@ -1730,20 +1796,23 @@ def extra_functionality(
     if config["sector"]["enhanced_geothermal"]["enable"]:
         add_flexible_egs_constraint(n)
 
-    if config["sector"]["green_imports"]["enable"]:
-        limit = config["sector"]["green_imports"]["limit"]
-        limit_sense = config["sector"]["green_imports"]["limit_sense"]
-        add_import_limit_constraint(n, snapshots, "green", limit_sense, limit)
-
-    if config["sector"]["fossil_imports"]["enable"]:
-        limit = config["sector"]["fossil_imports"]["limit"]
-        limit_sense = config["sector"]["fossil_imports"]["limit_sense"]
-        add_import_limit_constraint(n, snapshots, "fossil", limit_sense, limit)
-
-    if config["sector"]["other_imports"]["enable"]:
-        limit = config["sector"]["other_imports"]["limit"]
-        limit_sense = config["sector"]["other_imports"]["limit_sense"]
-        add_import_limit_constraint(n, snapshots, "other", limit_sense, limit)
+    sector_options = config.get("sector", {})
+    import_options = {
+        "green": sector_options.get(
+            "green_imports", sector_options.get("imports", {})
+        ),
+        "fossil": sector_options.get("fossil_imports", {}),
+        "other": sector_options.get("other_imports", {}),
+    }
+    for import_type, options in import_options.items():
+        if options.get("enable", False):
+            add_import_limit_constraint(
+                n,
+                snapshots,
+                import_type,
+                options.get("limit_sense", "<="),
+                options.get("limit"),
+            )
 
     base_year = snakemake.params.planning_horizons[0]
     investment_year = int(snakemake.wildcards.horizon)

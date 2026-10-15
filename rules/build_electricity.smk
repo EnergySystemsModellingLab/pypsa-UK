@@ -4,7 +4,7 @@
 
 
 rule build_electricity_demand:
-    """Builds national hourly electricity demand time series from ENTSO-E, OPSD and NESO data."""
+    """Builds national hourly electricity demand from ENTSO-E, OPSD, NESO and ESPENI."""
     input:
         opsd=rules.retrieve_electricity_demand_opsd.output["csv"],
         neso=rules.retrieve_electricity_demand_neso.output["csv"],
@@ -27,6 +27,7 @@ rule build_electricity_demand:
         drop_leap_day=config_provider("enable", "drop_leap_day"),
         countries=config_provider("countries"),
         load=config_provider("load"),
+        uk_data=config_provider("uk_settings", "data"),
     script:
         scripts("build_electricity_demand.py")
 
