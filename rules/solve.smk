@@ -7,6 +7,13 @@ rule solve_network:
     """Optimises investment and dispatch for one planning horizon to minimise total system cost."""
     input:
         network=resources("networks/composed_{horizon}.nc"),
+        keadby_h2_demand=resources("keadby_h2_demand_{horizon}.csv"),
+        billingham_h2_demand=resources("billingham_h2_demand_{horizon}.csv"),
+        co2_totals=lambda w: (
+            rules.build_co2_totals.output["co2_totals"]
+            if isinstance(config_provider("local_co2")(w), dict)
+            else []
+        ),
     output:
         network=RESULTS + "networks/solved_{horizon}.nc",
         model=(
@@ -30,7 +37,11 @@ rule solve_network:
         solving=config_provider("solving"),
         foresight=config_provider("foresight"),
         planning_horizons=config_provider("planning_horizons"),
+        RDIR=RDIR,
+        uk_settings=config_provider("uk_settings", "solve"),
+        uk_settings_prepare=config_provider("uk_settings", "prepare"),
         sector=config_provider("sector"),
+        co2_budget=config_provider("co2_budget"),
         co2_sequestration_potential=config_provider(
             "sector", "co2_sequestration_potential"
         ),

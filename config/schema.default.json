@@ -470,6 +470,13 @@
           ],
           "type": "string"
         },
+        "single_node_regions": {
+          "description": "Regions that should always receive exactly one cluster.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "administrative": {
           "description": "Configuration for `clustering.administrative` settings.",
           "properties": {
@@ -594,6 +601,45 @@
                 "type": "string"
               },
               "type": "array"
+            },
+            "subregions": {
+              "additionalProperties": {
+                "properties": {
+                  "geojson": {
+                    "type": "string"
+                  },
+                  "id_field": {
+                    "default": "name",
+                    "type": "string"
+                  },
+                  "allocation_method": {
+                    "default": "load",
+                    "enum": [
+                      "load",
+                      "buses",
+                      "equal"
+                    ],
+                    "type": "string"
+                  },
+                  "min_clusters_per_subregion": {
+                    "default": 1,
+                    "type": "integer"
+                  },
+                  "on_unassigned": {
+                    "default": "nearest",
+                    "enum": [
+                      "nearest",
+                      "error"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "geojson"
+                ]
+              },
+              "description": "Optional polygon definitions for splitting countries into subregions before clustering.",
+              "type": "object"
             }
           }
         },
@@ -2855,6 +2901,17 @@
         }
       }
     },
+    "LDESConfig": {
+      "description": "Configuration for long-duration energy storage technologies.",
+      "properties": {
+        "technologies": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      }
+    },
     "LinesConfig": {
       "description": "Configuration for `lines` settings.",
       "properties": {
@@ -3163,6 +3220,26 @@
               "type": "string"
             }
           }
+        }
+      }
+    },
+    "PlannedHydrogenProjectsConfig": {
+      "properties": {
+        "scenario": {
+          "default": "pipeline-led",
+          "enum": [
+            "pipeline-led",
+            "network-upgrades-led"
+          ],
+          "type": "string"
+        },
+        "demand_level": {
+          "default": "high",
+          "type": "string"
+        },
+        "implementation_year": {
+          "default": 2030,
+          "type": "integer"
         }
       }
     },
@@ -5588,6 +5665,28 @@
           "default": true,
           "description": "Add ammonia as a carrier. It can be either true (copperplated NH3), false (no NH3 carrier) or \"regional\" (regionalised NH3 without network)."
         },
+        "ammonia_turbine": {
+          "default": true,
+          "description": "Add ammonia-fuelled turbines for re-electrification.",
+          "type": "boolean"
+        },
+        "ammonia_cracker": {
+          "default": false,
+          "description": "Add ammonia crackers for hydrogen production.",
+          "type": "boolean"
+        },
+        "electrolysis_p_min_pu": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": false,
+          "description": "Minimum output per unit of installed electrolysis capacity."
+        },
         "min_part_load_electrolysis": {
           "default": 0,
           "description": "The minimum unit dispatch (`p_min_pu`) for electrolysis.",
@@ -5921,9 +6020,22 @@
               "type": "boolean"
             },
             "limit": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "additionalProperties": {
+                    "type": "number"
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "boolean"
+                }
+              ],
               "default": null,
-              "description": "Maximum allowed renewable energy imports (TWh).",
-              "type": "number"
+              "description": "Maximum allowed renewable energy imports (TWh), globally or per country."
             },
             "limit_sense": {
               "default": "<=",
@@ -6540,6 +6652,318 @@
             "keep"
           ],
           "type": "string"
+        }
+      }
+    },
+    "UKDataConfig": {
+      "properties": {
+        "uk_energy_balance_year": {
+          "default": 2024,
+          "description": "UK energy-balance data year.",
+          "type": "integer"
+        },
+        "uk_electricity_demand_year": {
+          "default": 2025,
+          "description": "UK electricity-demand data year.",
+          "type": "integer"
+        },
+        "uk_new_gas_storage_data": {
+          "default": true,
+          "type": "boolean"
+        },
+        "uk_new_powerplants_data": {
+          "default": true,
+          "type": "boolean"
+        },
+        "uk_new_industry_data": {
+          "default": false,
+          "type": "boolean"
+        }
+      }
+    },
+    "UKPrepareConfig": {
+      "properties": {
+        "uk_scale_up_offwind_potential": {
+          "default": 2,
+          "type": "number"
+        },
+        "uk_include_offshore_buses": {
+          "default": false,
+          "type": "boolean"
+        },
+        "uk_transmission_limits": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "reduce_model_in_the_east": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "additionalProperties": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "type": "object"
+            }
+          ],
+          "default": false
+        },
+        "use_dynamic_gas_prices": {
+          "default": false,
+          "type": "boolean"
+        },
+        "gas_prices": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "planned_hydrogen_projects": {
+          "anyOf": [
+            {
+              "properties": {
+                "scenario": {
+                  "default": "pipeline-led",
+                  "enum": [
+                    "pipeline-led",
+                    "network-upgrades-led"
+                  ],
+                  "type": "string"
+                },
+                "demand_level": {
+                  "default": "high",
+                  "type": "string"
+                },
+                "implementation_year": {
+                  "default": 2030,
+                  "type": "integer"
+                }
+              }
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "default": false
+        }
+      }
+    },
+    "UKSettingsConfig": {
+      "properties": {
+        "data": {
+          "properties": {
+            "uk_energy_balance_year": {
+              "default": 2024,
+              "description": "UK energy-balance data year.",
+              "type": "integer"
+            },
+            "uk_electricity_demand_year": {
+              "default": 2025,
+              "description": "UK electricity-demand data year.",
+              "type": "integer"
+            },
+            "uk_new_gas_storage_data": {
+              "default": true,
+              "type": "boolean"
+            },
+            "uk_new_powerplants_data": {
+              "default": true,
+              "type": "boolean"
+            },
+            "uk_new_industry_data": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        },
+        "prepare": {
+          "properties": {
+            "uk_scale_up_offwind_potential": {
+              "default": 2,
+              "type": "number"
+            },
+            "uk_include_offshore_buses": {
+              "default": false,
+              "type": "boolean"
+            },
+            "uk_transmission_limits": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            "reduce_model_in_the_east": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "additionalProperties": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "type": "object"
+                }
+              ],
+              "default": false
+            },
+            "use_dynamic_gas_prices": {
+              "default": false,
+              "type": "boolean"
+            },
+            "gas_prices": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            "planned_hydrogen_projects": {
+              "anyOf": [
+                {
+                  "properties": {
+                    "scenario": {
+                      "default": "pipeline-led",
+                      "enum": [
+                        "pipeline-led",
+                        "network-upgrades-led"
+                      ],
+                      "type": "string"
+                    },
+                    "demand_level": {
+                      "default": "high",
+                      "type": "string"
+                    },
+                    "implementation_year": {
+                      "default": 2030,
+                      "type": "integer"
+                    }
+                  }
+                },
+                {
+                  "type": "boolean"
+                }
+              ],
+              "default": false
+            }
+          }
+        },
+        "solve": {
+          "properties": {
+            "uk_only": {
+              "default": true,
+              "type": "boolean"
+            },
+            "uk_freeze_base_year_capacities": {
+              "default": true,
+              "type": "boolean"
+            },
+            "uk_freeze_wind_projects": {
+              "additionalProperties": {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "type": "object"
+            },
+            "uk_brownfield_minimum_capacity_factors": {
+              "additionalProperties": {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "uk_max_electric_heating_share": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "default": false
+            },
+            "uk_fixed_electricity_generation_mix": {
+              "default": false,
+              "type": "boolean"
+            },
+            "uk_remove_storage": {
+              "default": false,
+              "type": "boolean"
+            },
+            "uk_deployment_rate_limits": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "UKSolveConfig": {
+      "properties": {
+        "uk_only": {
+          "default": true,
+          "type": "boolean"
+        },
+        "uk_freeze_base_year_capacities": {
+          "default": true,
+          "type": "boolean"
+        },
+        "uk_freeze_wind_projects": {
+          "additionalProperties": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "type": "object"
+        },
+        "uk_brownfield_minimum_capacity_factors": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object"
+          },
+          "type": "object"
+        },
+        "uk_max_electric_heating_share": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": false
+        },
+        "uk_fixed_electricity_generation_mix": {
+          "default": false,
+          "type": "boolean"
+        },
+        "uk_remove_storage": {
+          "default": false,
+          "type": "boolean"
+        },
+        "uk_deployment_rate_limits": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
         }
       }
     },
@@ -7322,8 +7746,82 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "subregions": {
+          "additionalProperties": {
+            "properties": {
+              "geojson": {
+                "type": "string"
+              },
+              "id_field": {
+                "default": "name",
+                "type": "string"
+              },
+              "allocation_method": {
+                "default": "load",
+                "enum": [
+                  "load",
+                  "buses",
+                  "equal"
+                ],
+                "type": "string"
+              },
+              "min_clusters_per_subregion": {
+                "default": 1,
+                "type": "integer"
+              },
+              "on_unassigned": {
+                "default": "nearest",
+                "enum": [
+                  "nearest",
+                  "error"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "geojson"
+            ]
+          },
+          "description": "Optional polygon definitions for splitting countries into subregions before clustering.",
+          "type": "object"
         }
       }
+    },
+    "_ClusterSubregionConfig": {
+      "properties": {
+        "geojson": {
+          "type": "string"
+        },
+        "id_field": {
+          "default": "name",
+          "type": "string"
+        },
+        "allocation_method": {
+          "default": "load",
+          "enum": [
+            "load",
+            "buses",
+            "equal"
+          ],
+          "type": "string"
+        },
+        "min_clusters_per_subregion": {
+          "default": 1,
+          "type": "integer"
+        },
+        "on_unassigned": {
+          "default": "nearest",
+          "enum": [
+            "nearest",
+            "error"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "geojson"
+      ]
     },
     "_ConstraintsConfig": {
       "description": "Configuration for `solving.constraints` settings.",
@@ -8255,9 +8753,22 @@
           "type": "boolean"
         },
         "limit": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            {
+              "type": "boolean"
+            }
+          ],
           "default": null,
-          "description": "Maximum allowed renewable energy imports (TWh).",
-          "type": "number"
+          "description": "Maximum allowed renewable energy imports (TWh), globally or per country."
         },
         "limit_sense": {
           "default": "<=",
@@ -10125,6 +10636,176 @@
       },
       "type": "array"
     },
+    "uk_settings": {
+      "properties": {
+        "data": {
+          "properties": {
+            "uk_energy_balance_year": {
+              "default": 2024,
+              "description": "UK energy-balance data year.",
+              "type": "integer"
+            },
+            "uk_electricity_demand_year": {
+              "default": 2025,
+              "description": "UK electricity-demand data year.",
+              "type": "integer"
+            },
+            "uk_new_gas_storage_data": {
+              "default": true,
+              "type": "boolean"
+            },
+            "uk_new_powerplants_data": {
+              "default": true,
+              "type": "boolean"
+            },
+            "uk_new_industry_data": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        },
+        "prepare": {
+          "properties": {
+            "uk_scale_up_offwind_potential": {
+              "default": 2,
+              "type": "number"
+            },
+            "uk_include_offshore_buses": {
+              "default": false,
+              "type": "boolean"
+            },
+            "uk_transmission_limits": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            "reduce_model_in_the_east": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "additionalProperties": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "type": "object"
+                }
+              ],
+              "default": false
+            },
+            "use_dynamic_gas_prices": {
+              "default": false,
+              "type": "boolean"
+            },
+            "gas_prices": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            "planned_hydrogen_projects": {
+              "anyOf": [
+                {
+                  "properties": {
+                    "scenario": {
+                      "default": "pipeline-led",
+                      "enum": [
+                        "pipeline-led",
+                        "network-upgrades-led"
+                      ],
+                      "type": "string"
+                    },
+                    "demand_level": {
+                      "default": "high",
+                      "type": "string"
+                    },
+                    "implementation_year": {
+                      "default": 2030,
+                      "type": "integer"
+                    }
+                  }
+                },
+                {
+                  "type": "boolean"
+                }
+              ],
+              "default": false
+            }
+          }
+        },
+        "solve": {
+          "properties": {
+            "uk_only": {
+              "default": true,
+              "type": "boolean"
+            },
+            "uk_freeze_base_year_capacities": {
+              "default": true,
+              "type": "boolean"
+            },
+            "uk_freeze_wind_projects": {
+              "additionalProperties": {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "type": "object"
+            },
+            "uk_brownfield_minimum_capacity_factors": {
+              "additionalProperties": {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "uk_max_electric_heating_share": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "default": false
+            },
+            "uk_fixed_electricity_generation_mix": {
+              "default": false,
+              "type": "boolean"
+            },
+            "uk_remove_storage": {
+              "default": false,
+              "type": "boolean"
+            },
+            "uk_deployment_rate_limits": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            }
+          }
+        }
+      },
+      "description": "Configuration for UK-specific data, preparation, and solving options."
+    },
+    "LDES": {
+      "description": "Configuration for long-duration energy storage technologies.",
+      "properties": {
+        "technologies": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      }
+    },
     "snapshots": {
       "description": "Configuration for `snapshots` settings.",
       "properties": {
@@ -10250,6 +10931,24 @@
           "description": "Lower CO2 budget limit to prevent unrealistic/too-fast decarbonization. Set individual years to None to disable constraint."
         }
       }
+    },
+    "local_co2": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object"
+          },
+          "type": "object"
+        }
+      ],
+      "default": false,
+      "description": "Optional regional CO2 emissions limits by planning horizon."
     },
     "electricity": {
       "description": "Configuration for `electricity` settings.",
@@ -13131,6 +13830,28 @@
           "default": true,
           "description": "Add ammonia as a carrier. It can be either true (copperplated NH3), false (no NH3 carrier) or \"regional\" (regionalised NH3 without network)."
         },
+        "ammonia_turbine": {
+          "default": true,
+          "description": "Add ammonia-fuelled turbines for re-electrification.",
+          "type": "boolean"
+        },
+        "ammonia_cracker": {
+          "default": false,
+          "description": "Add ammonia crackers for hydrogen production.",
+          "type": "boolean"
+        },
+        "electrolysis_p_min_pu": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "default": false,
+          "description": "Minimum output per unit of installed electrolysis capacity."
+        },
         "min_part_load_electrolysis": {
           "default": 0,
           "description": "The minimum unit dispatch (`p_min_pu`) for electrolysis.",
@@ -13464,9 +14185,22 @@
               "type": "boolean"
             },
             "limit": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "additionalProperties": {
+                    "type": "number"
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "boolean"
+                }
+              ],
               "default": null,
-              "description": "Maximum allowed renewable energy imports (TWh).",
-              "type": "number"
+              "description": "Maximum allowed renewable energy imports (TWh), globally or per country."
             },
             "limit_sense": {
               "default": "<=",
@@ -13861,6 +14595,13 @@
           ],
           "type": "string"
         },
+        "single_node_regions": {
+          "description": "Regions that should always receive exactly one cluster.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "administrative": {
           "description": "Configuration for `clustering.administrative` settings.",
           "properties": {
@@ -13985,6 +14726,45 @@
                 "type": "string"
               },
               "type": "array"
+            },
+            "subregions": {
+              "additionalProperties": {
+                "properties": {
+                  "geojson": {
+                    "type": "string"
+                  },
+                  "id_field": {
+                    "default": "name",
+                    "type": "string"
+                  },
+                  "allocation_method": {
+                    "default": "load",
+                    "enum": [
+                      "load",
+                      "buses",
+                      "equal"
+                    ],
+                    "type": "string"
+                  },
+                  "min_clusters_per_subregion": {
+                    "default": 1,
+                    "type": "integer"
+                  },
+                  "on_unassigned": {
+                    "default": "nearest",
+                    "enum": [
+                      "nearest",
+                      "error"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "geojson"
+                ]
+              },
+              "description": "Optional polygon definitions for splitting countries into subregions before clustering.",
+              "type": "object"
             }
           }
         },

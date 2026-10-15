@@ -376,8 +376,9 @@ class _ImportsConfig(BaseModel):
     enable: bool = Field(
         False, description="Add option to include renewable energy imports."
     )
-    limit: float = Field(
-        float("inf"), description="Maximum allowed renewable energy imports (TWh)."
+    limit: float | dict[str, float] | bool = Field(
+        float("inf"),
+        description="Maximum allowed renewable energy imports (TWh), globally or per country.",
     )
     limit_sense: str = Field("<=", description="Sense of the limit.")
     price: dict[str, float] = Field(
@@ -820,6 +821,15 @@ class SectorConfig(BaseModel):
     ammonia: bool | str = Field(
         True,
         description='Add ammonia as a carrier. It can be either true (copperplated NH3), false (no NH3 carrier) or "regional" (regionalised NH3 without network).',
+    )
+    ammonia_turbine: bool = Field(
+        True, description="Add ammonia-fuelled turbines for re-electrification."
+    )
+    ammonia_cracker: bool = Field(
+        False, description="Add ammonia crackers for hydrogen production."
+    )
+    electrolysis_p_min_pu: bool | float = Field(
+        False, description="Minimum output per unit of installed electrolysis capacity."
     )
     min_part_load_electrolysis: float = Field(
         0, description="The minimum unit dispatch (`p_min_pu`) for electrolysis."

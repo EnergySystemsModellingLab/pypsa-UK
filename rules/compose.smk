@@ -21,6 +21,8 @@ def get_compose_inputs(w):
     horizons = cfg["planning_horizons"]
     elec = cfg["electricity"]
     sector = cfg["sector"]
+    uk_settings = cfg["uk_settings"]
+    planned_hydrogen_projects = uk_settings["prepare"]["planned_hydrogen_projects"]
     import_carriers = sector["imports"]["price"] if sector["imports"]["enable"] else {}
 
     # Electricity-only inputs (always included)
@@ -63,6 +65,8 @@ def get_compose_inputs(w):
         load=resources("electricity_demand.nc"),
         snapshot_weightings=resources("snapshot_weightings.csv"),
         network=resources("networks/clustered.nc"),
+        onshore_regions=resources("onshore_regions.geojson"),
+        offshore_regions=resources("offshore_regions.geojson"),
         solar_rooftop_potentials=(
             resources("solar_rooftop_potentials.csv")
             if "solar" in cfg["electricity"]["renewable_carriers"]
@@ -176,6 +180,17 @@ def get_compose_inputs(w):
                 if cfg["sector"]["district_heating"]["ates"]["enable"]
                 else []
             ),
+            depleted_gas_fields=(
+                resources("depleted_gas_field_potentials.csv")
+                if sector["hydrogen_depleted_gas_fields"]
+                else []
+            ),
+            planned_hydrogen_projects=(
+                "data/data_UK/planned_hydrogen_projects.xlsx"
+                if planned_hydrogen_projects
+                else []
+            ),
+            uk_ammonia_demand=resources("uk_ammonia_demand.csv"),
         )
         inputs.update(sector_inputs)
 
@@ -221,6 +236,12 @@ rule compose_network:
         unpack(get_compose_inputs),
     output:
         resources("networks/composed_{horizon}.nc"),
+        keadby_h2_demand=resources("keadby_h2_demand_{horizon}.csv"),
+        billingham_h2_demand=resources("billingham_h2_demand_{horizon}.csv"),
+        uk_brownfield_power_plant_under_construction=resources(
+            "uk_brownfield_power_plant_under_construction_{horizon}.csv"
+        ),
+        uk_brownfield_storage=resources("uk_brownfield_storage_{horizon}.csv"),
     log:
         logs("compose_network_{horizon}.log"),
     benchmark:
@@ -274,5 +295,8 @@ rule compose_network:
         ),
         co2_budget=config_provider("co2_budget"),
         adjustments=config_provider("adjustments"),
+        uk_settings_data=config_provider("uk_settings", "data"),
+        uk_settings_prepare=config_provider("uk_settings", "prepare"),
+        ldes=config_provider("LDES", default={}),
     script:
         scripts("compose_network.py")

@@ -52,6 +52,7 @@ from pypsa.clustering.spatial import (
 )
 from scipy.sparse.csgraph import connected_components
 from shapely.algorithms.polylabel import polylabel
+from shapely.geometry import Point
 from shapely.geometry import MultiPolygon, Polygon
 
 from scripts._helpers import configure_logging, sanitize_busmap, set_scenario_config
@@ -66,6 +67,256 @@ GEO_CRS = "EPSG:4326"
 DISTANCE_CRS = "EPSG:3035"
 BUS_TOL = 500  # meters
 
+central_england_short = ["GBH11", "GBH12", "GBH21", "GBH23","GBH24", "GBF24", "GBF25", "GBJ14", "GBJ11", "GBH25"]
+scotland_short = "GBM"
+north_west_short = "GBD"
+north_east_yorkshire_humber_short = ["GBC", "GBE"]
+east_midland_short = ["GBE13", "GBF"]
+west_midland_short = "GBG"
+east_short = "GBH"
+south_east_short = "GBJ"
+south_west_short = "GBK"
+wales_cymru_short = "GBL"
+greater_london_short = "GBI"
+north_ireland_short = "GBN"
+
+dct1 = {
+        "GB central england": central_england_short, 
+        "GB east midland": east_midland_short, 
+        "GB scotland": scotland_short, 
+        "GB north west": north_west_short, 
+        "GB north east yorkshire humber": north_east_yorkshire_humber_short, 
+        "GB west midland": west_midland_short, 
+        "GB east": east_short,
+        "GB south east": south_east_short, 
+        "GB south west": south_west_short, 
+        "GB wales cymru": wales_cymru_short, 
+        "GB greater london": greater_london_short,
+        "GB north ireland": north_ireland_short
+        }
+
+dct1_rev = {}
+for region, codes in dct1.items():
+    if isinstance(codes, list):
+        for code in codes:
+            dct1_rev[code] = region
+    else:
+        dct1_rev[codes] = region
+
+def create_neighbors_matrix(regions):
+    neighbors_dct = {}
+    for a in regions.admin.unique():
+
+        regions_a = regions.query("admin == @a")
+
+        neighbors_matrix = pd.DataFrame(columns = regions_a.index, 
+                                    index = regions_a.index)
+
+        for i in range(len(regions_a)):
+            for j in range(len(regions_a)):
+
+                if i != j:
+                    intersect_ij = regions_a.iloc[i].geometry.boundary.intersection(regions_a.iloc[j].geometry.boundary)
+
+                    if not intersect_ij.is_empty:
+                        neighbors_matrix.loc[regions_a.index[i], regions_a.index[j]] = 1
+
+        neighbors_dct[a] = neighbors_matrix
+
+    return neighbors_dct
+
+def collect_small_regions(regions, neighbors_dct):
+
+    regions_merge = regions.copy()
+
+    indices_dropped = []
+
+    for c in regions_merge.index:
+
+        if c in regions_merge.index:
+
+            neighbors_dct_c = neighbors_dct[regions_merge.loc[c, "admin"]]
+
+            if regions_merge.loc[c, "colors"] == 1:
+
+                c_neighbors = neighbors_dct_c.loc[c].dropna()
+
+                c_neighbors_index = c_neighbors.index[c_neighbors.index.isin(regions_merge.index)]
+
+                regions_neighbors = regions_merge.loc[c_neighbors_index]
+
+                # only consider neighbors that are also small in size:
+                regions_neighbors_small = regions_neighbors.query("colors == 1")
+
+                if not regions_neighbors_small.empty:
+                    # add c to the list of neighbors:
+                    regions_neighbors_c = pd.concat([regions_neighbors_small, pd.DataFrame(regions_merge.loc[c]).T])
+
+                else:
+                    # if no small neighbors, then merge to the largest of the large neighbors:
+                    # add c to the list of neighbors:
+                    regions_neighbors_c = pd.concat([regions_neighbors, pd.DataFrame(regions_merge.loc[c]).T])
+
+                # largest region in the group of large/small neighbors:
+                largest = regions_neighbors_c["size"].idxmax()
+
+                # substations
+                substations = regions_neighbors_c["substations"].sum()
+
+                # if one region has already been merged, then drop it:
+                regions_to_merge = regions_neighbors_c.loc[~regions_neighbors_c.index.isin(indices_dropped)]
+
+                if not regions_to_merge.empty:
+
+                    indices_to_drop = list(regions_to_merge.index.values)
+
+                    regions_merge.loc[regions_to_merge.index, "admin1"] = largest
+                    regions_merge.loc[regions_to_merge.index, "substations"] = substations
+
+                    indices_dropped += indices_to_drop
+
+        else:
+            if c in indices_dropped:
+                continue
+            else:
+                raise ValueError(c, "Region not found")
+
+    # sanity check
+    if regions_merge.query("colors == 1").loc[regions_merge.query("colors == 1")["admin1"].isna()].empty:
+        print("All small regions merged - sanity check passed!")
+    else:
+        raise ValueError("Some small regions not merged - sanity check 2/2 failed!")
+
+    regions_merge.loc[regions_merge.query("colors == 0").index, "admin1"] = regions_merge.query("colors == 0").index
+
+    no_reduced = len(regions.index) - len(regions_merge["admin1"].unique())
+    print(no_reduced, "regions reduced after merging small regions")
+
+    return regions_merge
+
+def merge_small_regions(regions, regions_post, neighbors_dct):
+
+    # logger.info(f"Number of regions after merging step: {len(regions_post['admin1'].unique())}")
+    
+    for a1 in regions_post["admin1"].unique():
+        regions_post_a1 = regions_post.query("admin1 == @a1")
+
+        if len(regions_post_a1) > 1:
+            index_to_drop = regions_post_a1.index
+
+            regions_post_a1_merged = regions_post_a1.dissolve()
+            regions_post_a1_merged.index = [a1]
+            regions_post_a1_merged["colors"] = 0
+
+            regions_post.drop(index=index_to_drop, inplace=True)
+
+            regions_post = pd.concat([regions_post, regions_post_a1_merged])
+
+        elif len(regions_post_a1) == 1 and regions_post_a1["colors"].values[0] == 1:
+
+            try: 
+                dct1_rev_a1 = dct1_rev[a1[0:5]]
+
+            except:
+                dct1_rev_a1 = dct1_rev[a1[0:3]]
+                
+            number_of_small_neighbors = regions.loc[neighbors_dct[dct1_rev_a1].loc[a1].dropna().index]["colors"].sum()
+            
+            if number_of_small_neighbors > 0:
+                print(f"Region {a1} is small, it has {number_of_small_neighbors} small neighbors, and was for some reason not merged.")
+
+        else:
+            continue
+
+    return regions_post
+
+def aggregate_small_admin_subregions(admin_shapes_all, area_threshold, country = "GB"):
+
+    admin_shapes_all = admin_shapes_all.to_crs(DISTANCE_CRS)
+
+    admin_shapes = admin_shapes_all.query("country == @country")
+    admin_shapes_c_index = admin_shapes.index
+
+    # add color column for small (1) and large (0) regions
+    admin_shapes_size = admin_shapes.geometry.area / 1e6 # km2
+    admin_shapes["size"] = admin_shapes_size
+
+    admin_shapes_size.loc[admin_shapes_size < area_threshold] = 1
+    admin_shapes_size.loc[admin_shapes_size > area_threshold] = 0
+
+    admin_shapes["colors"] = admin_shapes_size
+    admin_shapes_new = admin_shapes.copy()
+
+    for key, value in dct1.items():
+
+        if key in ['GB central england', 'GB east midland']:
+            admin_key = pd.concat([admin_shapes.query("contains.str.contains(@value[@i])") for i in range(len(value))]).drop_duplicates()
+        elif type(value) == str:
+            admin_key = admin_shapes.loc[admin_shapes.index.str.startswith(value)]
+        else:
+            admin_key = admin_shapes.loc[admin_shapes.index.str.startswith(value[0]) | admin_shapes.index.str.contains(value[1])]
+
+        if "admin" in admin_shapes_new.columns:
+            condition = admin_shapes_new.loc[admin_key.index, "admin"].isna()
+            if condition.any():
+                indices_to_replace = admin_shapes_new.loc[admin_key.index].loc[condition].index
+            else:
+                continue
+        else:
+            indices_to_replace = admin_key.index
+
+        admin_shapes_new.loc[indices_to_replace, "admin"] = key
+
+    admin_shapes_update = admin_shapes_new.copy()
+    logger.info(f"Colors sum: {admin_shapes_update['colors'].sum()}")
+    i = 0
+    while admin_shapes_update["colors"].sum() > 3 and i < 10:
+        # create neighbor matrix
+        neighbors_dct = create_neighbors_matrix(admin_shapes_update)
+        
+        # collect all adjacent small regions 
+        regions_uk_post = collect_small_regions(admin_shapes_update, neighbors_dct)
+        
+        # merge small neighboring regions
+        admin_shapes_update = merge_small_regions(admin_shapes_update, regions_uk_post, neighbors_dct)
+        
+        # update sizes 
+        admin_shapes_size = admin_shapes_update.geometry.area / 1e6 # km2
+        admin_shapes_size.loc[admin_shapes_size < area_threshold] = 1
+        admin_shapes_size.loc[admin_shapes_size > area_threshold] = 0
+
+        admin_shapes_update["colors"] = admin_shapes_size
+
+        i += 1
+
+    # print admin_shapes_update
+    logger.info(f"admin_shapes_update columns: {admin_shapes_update.columns}")
+    logger.info(f"admin_shapes_update admin: {admin_shapes_update.admin.unique()}")
+
+    admin_shapes_update.drop(columns=["size", "colors","admin", "admin1"], inplace=True)
+
+    # drop indices for country
+    admin_shapes_all.drop(admin_shapes_c_index, inplace=True)
+
+    # add new admin regions for country
+    admin_shapes_all = pd.concat([admin_shapes_all, admin_shapes_update])
+
+    return admin_shapes_all.to_crs(GEO_CRS)
+
+def correct_busmap(busmap, bus):
+    """
+    Corrects the busmap for Northern Ireland to point to the new bus.
+    
+    Parameters
+    ----------
+    busmap : pd.Series
+        The busmap to correct.
+    """
+    busmap_subset = busmap.loc[busmap.str.contains(bus[0:3])]
+
+    busmap.loc[busmap_subset.index] = [bus] * len(busmap_subset)
+
+    return busmap
 
 def normed(x):
     return (x / x.sum()).fillna(0.0)
@@ -277,6 +528,9 @@ def distribute_n_clusters_to_countries(
     if isinstance(focus_weights, dict):
         total_focus = sum(list(focus_weights.values()))
 
+        logger.info(f"Using focus weights of {focus_weights} to distribute nodes")
+        logger.info(f"Using total focus weight of {total_focus} to distribute nodes")
+
         assert total_focus <= 1.0, (
             "The sum of focus weights must be less than or equal to 1."
         )
@@ -311,7 +565,6 @@ def distribute_n_clusters_to_countries(
         solver_name = "scip"
     m.solve(solver_name=solver_name)
     return m.solution["n"].to_series().astype(int)
-
 
 def busmap_for_n_clusters(
     n: pypsa.Network,
@@ -473,7 +726,9 @@ def cluster_regions(
 def busmap_for_admin_regions(
     n: pypsa.Network,
     admin_shapes: str,
-    params: dict,
+    countries: list,
+    administrative: dict,
+    area_threshold = 0,
 ) -> pd.Series:
     """
     Create a busmap based on administrative regions using the NUTS3 shapefile.
@@ -491,11 +746,23 @@ def busmap_for_admin_regions(
     -------
         busmap (pd.Series): Busmap mapping each bus to an administrative region.
     """
-    countries = params.countries
     admin_regions = gpd.read_file(admin_shapes)
 
-    admin_levels = params.administrative
-    level = admin_levels.get("level", 0)
+    admin_regions = admin_regions.set_index("admin")
+
+    if area_threshold > 0:
+        admin_regions = aggregate_small_admin_subregions(admin_regions, area_threshold, country = "GB")
+
+    # log info about how many regions are in GB
+    n_GB = len(admin_regions.query('country == "GB"'))
+    logger.info(f"Number of administrative regions in GB before merging small regions: {n_GB}")
+
+    admin_regions = admin_regions.reset_index().rename(columns={"index": "admin"})
+    
+    # overwrite admin_shapes file
+    admin_regions.to_file(admin_shapes, driver="GeoJSON")
+
+    level = administrative.get("level", 0)
     logger.info(f"Clustering at administrative level {level}.")
 
     # check if BA, MD, UA, or XK are in the network
@@ -529,7 +796,7 @@ def busmap_for_admin_regions(
 
     # Map based for each country
     logger.info("Mapping buses to administrative regions.")
-    for country in tqdm.tqdm(buses["country"].unique()):
+    for country in countries:
         buses_subset = buses.loc[buses["country"] == country]
 
         buses.loc[buses_subset.index, "busmap"] = gpd.sjoin_nearest(
@@ -637,9 +904,176 @@ def update_bus_coordinates(
     )
 
     # Update x, y coordinates of original network
-    n.buses["x"] = busmap_df["x"]
-    n.buses["y"] = busmap_df["y"]
+    buses = n.buses.copy()
+    update_buses = buses.loc[busmap.index]
+    update_buses["x"] = busmap_df["x"]
+    update_buses["y"] = busmap_df["y"]
 
+    buses.loc[update_buses.index, :] = update_buses
+
+    n.buses = buses
+
+def temporarily_split_countries_into_subcountries(
+    n: pypsa.Network,
+    split_cfg: dict,
+) -> pd.Series:
+    """
+    Temporarily overwrite n.buses.country for selected countries
+    using subregion polygons defined in split_cfg.
+
+    Returns a copy of the original country Series for restoration.
+    """
+    for country, cfg in split_cfg.items():
+
+        shapes = gpd.read_file(cfg["geojson"])
+        if shapes.crs is None:
+            shapes = shapes.set_crs(GEO_CRS)
+
+        id_field = cfg.get("id_field", "name")
+
+        if id_field not in shapes.columns:
+            raise ValueError(
+                f"{country} geojson missing id_field='{id_field}'. "
+                f"Columns: {list(shapes.columns)}"
+            )
+
+        shapes[id_field] = shapes[id_field].astype(str).str.strip()
+
+        if shapes[id_field].isna().any() or (shapes[id_field] == "").any():
+            raise ValueError(
+                f"{country} geojson has missing/blank '{id_field}' values."
+            )
+
+        # Select buses in this country
+        buses_c = n.buses[n.buses.country == country][["x", "y", "country"]].copy()
+
+        if buses_c.empty:
+            continue
+
+        # Assign each bus to subregion
+        subregion_for_bus = busmap_from_shapes(
+            n,
+            shapes,
+            buses=buses_c,
+            cluster_names=id_field,
+            per_country=False,
+        )
+
+        if subregion_for_bus.isna().any():
+            missing = subregion_for_bus.index[subregion_for_bus.isna()].tolist()[:10]
+            raise ValueError(
+                f"Some buses in {country} were not assigned to any subregion. "
+                f"Sample: {missing}"
+            )
+
+        # Overwrite country column with subregion IDs
+        n.buses.loc[buses_c.index, "country"] = subregion_for_bus.astype(str).values
+
+def move_unintended_offshore_buses(n, region_file):
+    """ 
+    This function checks if any of the clusters in the network are located outside the onshore region 
+    of the UK, and if so, moves them to the nearest point on the onshore boundary. This can happen expectedly 
+    due to offshore wind connections, shifting a bit the coordinates of the cluster towards the sea. 
+    """
+    uk_buses = n.buses.query("country == 'GB'")
+
+    uk_buses_gdf = gpd.GeoDataFrame(
+        uk_buses,
+        geometry=gpd.points_from_xy(uk_buses["x"], uk_buses["y"]),
+        crs="EPSG:4326"
+    )
+    uk_buses_gdf = uk_buses_gdf.to_crs(epsg=3035)
+
+    regions = gpd.read_file(region_file)
+    uk_regions = regions.query("name.str.contains('GB')")
+    uk_regions = uk_regions.to_crs(epsg=3035)
+    uk_onshore = uk_regions.dissolve()
+
+    uk_buses_gdf["within_onshore"] = uk_buses_gdf["geometry"].apply(lambda x: x.within(uk_onshore.geometry.iloc[0]))
+    coordinates_moved = uk_buses_gdf.index[uk_buses_gdf["within_onshore"] == False]
+    if len(coordinates_moved) == 0:
+        print("No buses were moved, all buses are within the onshore region.")
+        
+    else:
+        print(f"Moving {len(coordinates_moved)} buses that were outside the onshore region to the nearest point on the onshore boundary.")
+        print(coordinates_moved)
+
+    # if not uk_buses_gdf["within_onshore"], then move the lat to the nearest point on the uk_onshore geometry
+    uk_buses_gdf_update = uk_buses_gdf.copy()
+
+    # must only merge to a region if it belongs to it! Check first 4 letters of the region name and the bus region
+    for i in range(len(coordinates_moved)):
+        row = uk_buses_gdf.loc[coordinates_moved[i]]
+        length = len(uk_regions.name.iloc[0])
+        name = row.name[0:length]
+        subregion = uk_regions.query("name == @name")
+        new_point = subregion.geometry.boundary.interpolate(subregion.boundary.project(row["geometry"]))
+        uk_buses_gdf_update.loc[row.name, 
+                                "geometry"] = new_point.item()
+
+    # transform back to lat and lon 
+    uk_buses_gdf_update = uk_buses_gdf_update.to_crs(epsg=4326)
+    uk_buses_gdf_update["x"] = uk_buses_gdf_update.geometry.x
+    uk_buses_gdf_update["y"] = uk_buses_gdf_update.geometry.y
+    uk_buses_gdf_update.drop(columns = ["geometry", "within_onshore"], inplace=True)
+
+    n_updated = n.copy()
+    n_updated.buses.loc[uk_buses_gdf_update.index, :] = uk_buses_gdf_update
+
+    #############################################################################################################
+    ################################# Update network ############################################################
+    #############################################################################################################
+    def calculate_distances(bus0, bus1, DISTANCE_CRS):
+        n_lines_bus0_coords = bus0[["x", "y"]]
+        n_lines_bus1_coords = bus1[["x", "y"]]
+
+        bus0_coords = gpd.GeoDataFrame(
+                n_lines_bus0_coords,
+                geometry=gpd.points_from_xy(n_lines_bus0_coords["x"], n_lines_bus0_coords["y"]),
+                crs="EPSG:4326"
+            ).to_crs(DISTANCE_CRS)
+
+        bus1_coords = gpd.GeoDataFrame(
+                n_lines_bus1_coords,
+                geometry=gpd.points_from_xy(n_lines_bus1_coords["x"], n_lines_bus1_coords["y"]),
+                crs="EPSG:4326"
+            ).to_crs(DISTANCE_CRS)
+
+        # calculate distance between bus0 and bus1 for lines
+        distances = [bus0_coords.iloc[i].geometry.distance(bus1_coords.iloc[i].geometry) / 1e3 for i in range(len(bus0_coords))]
+
+        return distances
+        
+    lines_bus0 = n_updated.lines.where(n_updated.lines.bus0.isin(coordinates_moved)).dropna()
+    lines_bus1 = n_updated.lines.where(n_updated.lines.bus1.isin(coordinates_moved)).dropna()
+
+    links = n_updated.links.query("carrier == 'DC'")
+    links_bus0 = links.where(links.bus0.isin(coordinates_moved)).dropna()
+    links_bus1 = links.where(links.bus1.isin(coordinates_moved)).dropna()
+
+    # lines
+    buses0_0 = n_updated.buses.loc[lines_bus0.bus0]
+    buses0_1 = n_updated.buses.loc[lines_bus0.bus1]
+    buses1_0 = n_updated.buses.loc[lines_bus1.bus0]
+    buses1_1 = n_updated.buses.loc[lines_bus1.bus1]
+    lines_distances_0_updated = calculate_distances(buses0_0, buses0_1, DISTANCE_CRS)
+    lines_distances_1_updated = calculate_distances(buses1_0, buses1_1, DISTANCE_CRS)
+
+    # links
+    buses0_0 = n_updated.buses.loc[links_bus0.bus0]
+    buses0_1 = n_updated.buses.loc[links_bus0.bus1]
+    buses1_0 = n_updated.buses.loc[links_bus1.bus0]
+    buses1_1 = n_updated.buses.loc[links_bus1.bus1]
+    links_distances_0_updated = calculate_distances(buses0_0, buses0_1, DISTANCE_CRS)
+    links_distances_1_updated = calculate_distances(buses1_0, buses1_1, DISTANCE_CRS)
+
+    # Update distances
+    n_updated.lines.loc[lines_bus0.index, "length"] = lines_distances_0_updated
+    n_updated.lines.loc[lines_bus1.index, "length"] = lines_distances_1_updated
+    n_updated.links.loc[links_bus0.index, "length"] = links_distances_0_updated
+    n_updated.links.loc[links_bus1.index, "length"] = links_distances_1_updated
+
+    return n_updated
 
 if __name__ == "__main__":
     if "snakemake" not in globals():
@@ -651,7 +1085,13 @@ if __name__ == "__main__":
 
     params = snakemake.params
     mode = params.mode
+    administrative = params.administrative
+    countries = params.countries
+    n_clusters = int(snakemake.wildcards.clusters)
     solver_name = snakemake.config["solving"]["solver"]["name"]
+
+    algorithm = params.cluster_network["algorithm"]
+    features = None
 
     n = pypsa.Network(snakemake.input.network)
     buses_prev, lines_prev, links_prev = len(n.buses), len(n.lines), len(n.links)
@@ -673,7 +1113,8 @@ if __name__ == "__main__":
             busmap = busmap_for_admin_regions(
                 n,
                 snakemake.input.admin_shapes,
-                params,
+                countries,
+                administrative,
             )
             # Update x, y coordinates, ensuring that bus locations are inside the administrative region
             update_bus_coordinates(
@@ -708,6 +1149,10 @@ if __name__ == "__main__":
                 features = get_feature_data_for_hac(snakemake.input.hac_features)
                 fix_country_assignment_for_hac(n)
 
+            cluster_subregions = params.cluster_network.get("subregions", {})
+            if cluster_subregions:
+                temporarily_split_countries_into_subcountries(n, cluster_subregions)
+
             n.determine_network_topology()
 
             n_clusters_c = distribute_n_clusters_to_countries(
@@ -717,6 +1162,12 @@ if __name__ == "__main__":
                 focus_weights=params.focus_weights,
                 solver_name=solver_name,
             )
+
+            single_node_regions = params.single_node_regions
+            if single_node_regions:
+                idx = n_clusters_c.index.get_level_values("country").isin(single_node_regions)
+                fixed_idx = n_clusters_c.index[idx]
+                n_clusters_c.loc[fixed_idx] = 1
 
             busmap = busmap_for_n_clusters(
                 n,
@@ -748,6 +1199,12 @@ if __name__ == "__main__":
 
     cluster_busmap.to_csv(snakemake.output.busmap)
     clustering.linemap.to_csv(snakemake.output.linemap)
+
+    nc.meta = dict(snakemake.config, **dict(wildcards=dict(snakemake.wildcards)))
+
+    busmap_clustering = clustering.busmap.copy()
+    busmap_clustering.index.name = "Bus"
+    busmap_clustering.to_csv(snakemake.output.busmap, index=True)
 
     # nc.shapes = n.shapes.copy()
     for which in ["onshore_regions", "offshore_regions"]:

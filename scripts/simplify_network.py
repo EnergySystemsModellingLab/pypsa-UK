@@ -252,11 +252,14 @@ def remove_stubs(
 def remove_stubs_within_admin(
     n: pypsa.Network, simplify_network: dict, admin_shapes: str
 ) -> tuple[pypsa.Network, pd.Series]:
+    administrative = params.administrative
+    countries = params.countries
     busmap = busmap_for_admin_regions(
         n,
         admin_shapes,
-        params,
-    )
+        countries,
+        administrative
+        )
     n.buses["admin"] = n.buses.index.map(busmap)
 
     logger.info("Removing stubs within administrative regions.")
@@ -412,7 +415,6 @@ def remove_converters(n: pypsa.Network) -> pypsa.Network:
 
     return n, converter_map
 
-
 if __name__ == "__main__":
     if "snakemake" not in globals():
         from scripts._helpers import mock_snakemake
@@ -447,7 +449,7 @@ if __name__ == "__main__":
     busmaps.append(simplify_links_map)
 
     if params.simplify_network["remove_stubs"]:
-        if params.mode == "administrative":
+        if params.mode in ("administrative", "administrative_mixed"):
             n, stub_map = remove_stubs_within_admin(
                 n, params.simplify_network, snakemake.input.admin_shapes
             )
@@ -497,9 +499,11 @@ if __name__ == "__main__":
     for which in ["onshore_regions", "offshore_regions"]:
         regions = gpd.read_file(snakemake.input[which])
         clustered_regions = cluster_regions(busmaps, regions, with_country=True)
+        clustered_regions["country"] = clustered_regions["country"].str[0:2]
         clustered_regions.to_file(snakemake.output[which])
         # append_bus_shapes(n, clustered_regions, type=which.split("_")[1])
 
+    n.buses.country = n.buses.country.str[0:2]
     n.meta = dict(snakemake.config, **dict(wildcards=dict(snakemake.wildcards)))
     n.export_to_netcdf(snakemake.output.network)
 

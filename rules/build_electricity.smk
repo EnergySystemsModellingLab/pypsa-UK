@@ -4,7 +4,7 @@
 
 
 rule build_electricity_demand:
-    """Builds national hourly electricity demand time series from ENTSO-E, OPSD and NESO data."""
+    """Builds national hourly electricity demand from ENTSO-E, OPSD, NESO and ESPENI."""
     input:
         opsd=rules.retrieve_electricity_demand_opsd.output["csv"],
         neso=rules.retrieve_electricity_demand_neso.output["csv"],
@@ -27,6 +27,7 @@ rule build_electricity_demand:
         drop_leap_day=config_provider("enable", "drop_leap_day"),
         countries=config_provider("countries"),
         load=config_provider("load"),
+        uk_data=config_provider("uk_settings", "data"),
     script:
         scripts("build_electricity_demand.py")
 
@@ -103,6 +104,7 @@ rule base_network:
         links=config_provider("links"),
         transformers=config_provider("transformers"),
         clustering=config_provider("clustering", "mode"),
+        cluster_network=config_provider("clustering", "cluster_network"),
         admin_levels=config_provider("clustering", "administrative"),
     script:
         scripts("base_network.py")
@@ -180,7 +182,7 @@ rule build_nuts3_shapes:
         offshore_shapes=resources("offshore_shapes.geojson"),
         bidding_zones=lambda w: (
             resources("bidding_zones.geojson")
-            if config_provider("clustering", "mode")(w) == "administrative"
+            if config_provider("clustering", "mode")(w) in {"administrative", "administrative_mixed"}
             else []
         ),
         other_gdp=rules.retrieve_gdp_per_capita.output["gdp"],
@@ -700,6 +702,7 @@ rule simplify_network:
         mem_mb=12000,
     params:
         countries=config_provider("countries"),
+        single_node_regions=config_provider("clustering", "single_node_regions"),
         mode=config_provider("clustering", "mode"),
         administrative=config_provider("clustering", "administrative"),
         simplify_network=config_provider("clustering", "simplify_network"),
@@ -775,8 +778,11 @@ rule cluster_network:
         mem_mb=10000,
     params:
         countries=config_provider("countries"),
+        area_threshold=config_provider("clustering", "area_threshold"),
         mode=config_provider("clustering", "mode"),
         administrative=config_provider("clustering", "administrative"),
+        group_clusters=config_provider("clustering", "group_clusters"),
+        single_node_regions=config_provider("clustering", "single_node_regions"),
         cluster_network=config_provider("clustering", "cluster_network"),
         n_clusters=config_provider("clustering", "cluster_network", "n_clusters"),
         aggregation_strategies=config_provider(
