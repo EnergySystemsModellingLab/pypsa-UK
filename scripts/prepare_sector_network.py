@@ -33,10 +33,7 @@ from networkx.algorithms import complement
 from networkx.algorithms.connectivity.edge_augmentation import k_edge_augmentation
 from pypsa.geo import haversine_pts
 
-from scripts._helpers import (
-    get,
-    get_temporal_resolution,
-)
+from scripts._helpers import get, get_import_configs, get_temporal_resolution
 from scripts.add_electricity import (
     attach_storageunits,
     attach_stores,
@@ -6437,18 +6434,6 @@ def add_enhanced_geothermal(
                 max_hours=max_hours,
                 cyclic_state_of_charge=True,
             )
-
-
-def get_import_configs(options: dict) -> dict:
-    """Return import settings by category, falling back to legacy green imports."""
-    green_imports = options.get("green_imports")
-    if green_imports is None:
-        green_imports = options.get("imports", {})
-    return {
-        "green": green_imports,
-        "fossil": options.get("fossil_imports") or {},
-        "other": options.get("other_imports") or {},
-    }
 
 
 def add_import_options(

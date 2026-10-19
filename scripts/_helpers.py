@@ -47,6 +47,28 @@ REGION_COLS = ["geometry", "name", "x", "y", "country"]
 PYPSA_V1 = bool(re.match(r"^1\.\d", pypsa.__version__))
 
 
+def get_import_configs(options: dict) -> dict:
+    """Return import settings by category, with legacy imports as green fallback."""
+    green_imports = options.get("green_imports")
+    if green_imports is None:
+        green_imports = options.get("imports", {})
+    return {
+        "green": green_imports,
+        "fossil": options.get("fossil_imports") or {},
+        "other": options.get("other_imports") or {},
+    }
+
+
+def get_import_carriers(options: dict) -> set[str]:
+    """Return carriers used by enabled import categories."""
+    return {
+        carrier
+        for import_config in get_import_configs(options).values()
+        if import_config.get("enable", False)
+        for carrier in import_config.get("price", {})
+    }
+
+
 def strip_if_str(value: Any) -> Any:
     """Return stripped strings while leaving other values unchanged."""
 

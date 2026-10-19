@@ -23,7 +23,7 @@ def get_compose_inputs(w):
     sector = cfg["sector"]
     uk_settings = cfg["uk_settings"]
     planned_hydrogen_projects = uk_settings["prepare"]["planned_hydrogen_projects"]
-    import_carriers = sector["imports"]["price"] if sector["imports"]["enable"] else {}
+    import_carriers = get_import_carriers(sector)
 
     # Electricity-only inputs (always included)
     inputs = dict(

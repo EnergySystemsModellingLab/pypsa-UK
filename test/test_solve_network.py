@@ -8,11 +8,14 @@ import pandas as pd
 import pypsa
 import pytest
 
+from scripts._helpers import get_import_carriers, get_import_configs
 from scripts.lib.validation.config import validate_config
-from scripts.prepare_sector_network import add_import_options, get_import_configs
+from scripts.prepare_sector_network import add_import_options
 from scripts.solve_network import (
     add_co2_atmosphere_constraint,
     add_import_limit_constraint,
+    add_UK_brownfield_minimum_capacity_factors,
+    add_UK_deployment_rate_limits,
     calculate_co2_limit,
     emission_stores,
     import_assets_by_type,
@@ -289,6 +292,69 @@ def test_get_import_configs_supports_categories_and_legacy_green_fallback() -> N
     assert get_import_configs(
         {"green_imports": {}, "imports": green}
     )["green"] == {}
+    assert get_import_carriers(
+        {
+            "green_imports": {"enable": True, "price": {"H2": 74}},
+            "fossil_imports": {"enable": True, "price": {"gas": 50}},
+            "other_imports": {"enable": False, "price": {"NH3": 125}},
+        }
+    ) == {"H2", "gas"}
+    assert get_import_carriers(
+        {"imports": {"enable": True, "price": {"gas": 122}}}
+    ) == {"gas"}
+
+
+def test_brownfield_capacity_factor_uses_snapshot_weights() -> None:
+    n = pypsa.Network()
+    snapshots = pd.date_range("2030-01-01", periods=2, freq="h")
+    n.set_snapshots(snapshots)
+    n.snapshot_weightings.loc[:, "generators"] = [2, 5]
+    n.add("Carrier", "wind")
+    n.add("Bus", "GB wind")
+    n.add("Bus", "GB electricity")
+    n.add(
+        "Link",
+        "GB wind link",
+        bus0="GB wind",
+        bus1="GB electricity",
+        carrier="wind",
+        p_nom=10,
+        build_year=2020,
+        efficiency=1,
+    )
+    n.optimize.create_model()
+
+    add_UK_brownfield_minimum_capacity_factors(
+        n, {"wind": {2030: 0.5}}, base_year=2020, investment_year=2030
+    )
+
+    constraint = n.model.constraints["capacity_factor_wind"]
+    assert constraint.rhs.item() == pytest.approx(-35)
+
+
+def test_uk_deployment_limit_applies_to_expansion_above_existing_capacity() -> None:
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2025-01-01", periods=1, freq="h"))
+    n.add("Carrier", "onwind")
+    n.add("Bus", "GB onwind")
+    n.add(
+        "Generator",
+        "GB onwind",
+        bus="GB onwind",
+        carrier="onwind",
+        p_nom=5,
+        p_nom_min=5,
+        p_nom_max=100,
+        p_nom_extendable=True,
+    )
+    n.optimize.create_model()
+
+    add_UK_deployment_rate_limits(
+        n, {"onwind": 3.0}, base_year=2020, investment_year=2025
+    )
+
+    constraint = n.model.constraints["deployment_rate_limit_onwind_2025"]
+    assert constraint.rhs.item() == pytest.approx(8)
 
 
 def test_empty_validated_green_imports_override_enabled_legacy_imports() -> None:

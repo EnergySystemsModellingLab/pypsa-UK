@@ -36,15 +36,13 @@ from linopy.constants import SolverStatus, TerminationCondition
 from linopy.remote.oetc import OetcCredentials, OetcHandler, OetcSettings
 from pypsa.descriptors import get_activity_mask
 
-from scripts.prepare_sector_network import (
-    determine_emission_sectors,
-    get_import_configs,
-)
+from scripts.prepare_sector_network import determine_emission_sectors
 from scripts._benchmark import memory_logger
 from scripts._helpers import (
     PYPSA_V1,
     configure_logging,
     get,
+    get_import_configs,
     set_scenario_config,
 )
 
@@ -424,7 +422,8 @@ def add_UK_brownfield_minimum_capacity_factors(
 
     investment_year = int(investment_year)
 
-    T = len(n.snapshots)
+    snapshot_weights = n.snapshot_weightings.loc[n.snapshots, "generators"]
+    T = snapshot_weights.sum()
     for tech, minimum_capacity_factor in capacity_factors.items():
 
         if not investment_year in minimum_capacity_factor.keys():
@@ -456,7 +455,10 @@ def add_UK_brownfield_minimum_capacity_factors(
             continue
 
         # Total production of those links over all snapshots
-        tech_uk_prod = n.model["Link-p"].loc[:, tech_uk_prebuilt.index].sum()
+        tech_uk_prod = (
+            n.model["Link-p"].loc[n.snapshots, tech_uk_prebuilt.index]
+            * snapshot_weights
+        ).sum()
 
         # Minimum energy requirement: CF * capacity * time
         min_energy = minimum_capacity_factor_t_y * tech_uk_cap * T
@@ -538,7 +540,10 @@ def add_UK_deployment_rate_limits(n, deployment_rate_limits, base_year, investme
                 logger.info(f"No extendable {tech} capacity in UK, skipping deployment rate limit constraint.")
                 continue
 
-            lhs = n.model["Generator-p_nom"].loc[uk_generators_vre_extend.index].sum()
+            lhs = (
+                n.model["Generator-p_nom"].loc[uk_generators_vre_extend.index]
+                - uk_generators_vre_extend.p_nom_min
+            ).sum()
             rhs = deployment_rate_limits[tech] 
         
         n.model.add_constraints(lhs <= rhs, name=f"deployment_rate_limit_{tech}_{investment_year}")

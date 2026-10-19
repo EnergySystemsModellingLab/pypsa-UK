@@ -420,6 +420,7 @@ def add_gas_storage_data(n, onshore, offshore, baseyear, uk_settings_data, uk_se
     gas_stores = df.query("carrier == 'gas'")
     UK_gas_stores = gas_stores.query("bus.str.contains('GB')")
     EU_gas_stores = gas_stores.drop(index = UK_gas_stores.index)
+    uk_gas_nodes = UK_gas_stores.index
 
     if uk_settings_data["uk_new_gas_storage_data"]:
         onshore_regions =  gpd.read_file(onshore)
