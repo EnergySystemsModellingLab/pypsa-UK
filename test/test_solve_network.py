@@ -357,6 +357,34 @@ def test_uk_deployment_limit_applies_to_expansion_above_existing_capacity() -> N
     assert constraint.rhs.item() == pytest.approx(8)
 
 
+def test_heat_pump_deployment_limit_excludes_existing_capacity() -> None:
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2025-01-01", periods=1, freq="h"))
+    n.add("Carrier", "heat pump")
+    n.add("Bus", "GB heat")
+    n.add("Bus", "GB electricity")
+    n.add(
+        "Link",
+        "GB heat pump",
+        bus0="GB electricity",
+        bus1="GB heat",
+        carrier="heat pump",
+        p_nom=5,
+        p_nom_min=5,
+        p_nom_max=100,
+        p_nom_extendable=True,
+        efficiency=3,
+    )
+    n.optimize.create_model()
+
+    add_UK_deployment_rate_limits(
+        n, {"heat pump": 12.0}, base_year=2020, investment_year=2025
+    )
+
+    constraint = n.model.constraints["deployment_rate_limit_heat pump_2025"]
+    assert constraint.rhs.item() == pytest.approx(27)
+
+
 def test_empty_validated_green_imports_override_enabled_legacy_imports() -> None:
     sector = validate_config(
         {

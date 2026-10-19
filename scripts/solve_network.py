@@ -490,7 +490,10 @@ def add_UK_deployment_rate_limits(n, deployment_rate_limits, base_year, investme
             uk_links_hp = uk_links.loc[uk_links.index.str.contains(tech)]   
             uk_links_hp_extend = uk_links_hp.query("p_nom_extendable == True")
             COP_avg = 3 # assumed average COP of heat pumps
-            lhs = n.model["Link-p_nom"].loc[uk_links_hp_extend.index].sum() * COP_avg
+            lhs = (
+                n.model["Link-p_nom"].loc[uk_links_hp_extend.index]
+                - uk_links_hp_extend.p_nom_min
+            ).sum() * COP_avg
             rhs = deployment_rate_limits[tech] 
 
         elif tech in ["transmission"]:
