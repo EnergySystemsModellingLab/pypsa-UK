@@ -8,6 +8,7 @@ import pandas as pd
 import pypsa
 import pytest
 
+from scripts.lib.validation.config import validate_config
 from scripts.prepare_sector_network import add_import_options, get_import_configs
 from scripts.solve_network import (
     add_co2_atmosphere_constraint,
@@ -290,29 +291,48 @@ def test_get_import_configs_supports_categories_and_legacy_green_fallback() -> N
     )["green"] == {}
 
 
+def test_empty_validated_green_imports_override_enabled_legacy_imports() -> None:
+    sector = validate_config(
+        {
+            "sector": {
+                "green_imports": {},
+                "imports": {"enable": True, "price": {"gas": 122}},
+            }
+        }
+    ).sector.model_dump()
+
+    assert get_import_configs(sector)["green"]["enable"] is False
+
+
 @pytest.mark.parametrize(
-    ("import_type", "carrier", "settings", "bus", "p_nom"),
+    ("import_type", "carrier", "settings", "bus", "p_nom", "component"),
     [
-        ("fossil", "import gas", {"gas": 50}, "GB gas", 1.0),
-        ("other", "import NH3", {"NH3": 125}, "GB ammonia", 1e7),
+        ("green", "import gas", {"gas": 122}, "GB gas", 1.0, "links"),
+        ("fossil", "import gas", {"gas": 50}, "GB gas", 1.0, "generators"),
+        ("other", "import NH3", {"NH3": 125}, "GB ammonia", 1e7, "generators"),
     ],
 )
 def test_add_import_options_builds_category_assets(
-    import_type, carrier, settings, bus, p_nom
+    import_type, carrier, settings, bus, p_nom, component
 ):
     n = pypsa.Network()
     n.add("Carrier", carrier)
     n.add("Bus", bus)
-    if import_type == "fossil":
+    if import_type in {"green", "fossil"}:
         gas_input_nodes = pd.DataFrame({"lng": [1.0]}, index=["GB"])
         spatial = SimpleNamespace(gas=SimpleNamespace(nodes=[bus]))
+        costs = pd.DataFrame({"CO2 intensity": [1.0]}, index=["gas"])
+        if import_type == "green":
+            n.add("Carrier", "co2")
+            n.add("Bus", "co2 atmosphere", carrier="co2")
     else:
         gas_input_nodes = pd.DataFrame({"lng": [], "pipeline": []})
         spatial = SimpleNamespace(ammonia=SimpleNamespace(nodes=[bus]))
+        costs = pd.DataFrame()
 
     add_import_options(
         n,
-        pd.DataFrame(),
+        costs,
         {"ammonia": True},
         spatial,
         gas_input_nodes,
@@ -320,10 +340,14 @@ def test_add_import_options_builds_category_assets(
         {"price": settings},
     )
 
-    generator = n.generators.loc[n.generators.carrier == carrier]
-    assert generator.index.tolist() == [f"{bus} import"]
-    assert generator.bus.item() == bus
-    assert generator.p_nom.item() == pytest.approx(p_nom)
+    assets = getattr(n, component)
+    asset = assets.loc[assets.carrier == carrier]
+    assert asset.index.tolist() == [f"{bus} import"]
+    assert asset.p_nom.item() == pytest.approx(p_nom)
+    if component == "links":
+        assert asset.bus1.item() == bus
+    else:
+        assert asset.bus.item() == bus
 
 
 def test_calculate_co2_limit_supports_relative_and_absolute_budgets() -> None:
