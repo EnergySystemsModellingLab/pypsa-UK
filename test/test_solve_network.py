@@ -11,6 +11,7 @@ from scripts.solve_network import (
     add_import_limit_constraint,
     calculate_co2_limit,
     emission_stores,
+    import_assets_by_type,
     valid_local_co2_regions,
 )
 
@@ -99,20 +100,23 @@ def test_add_import_limit_constraint_honours_limit(
     n = pypsa.Network()
     n.set_snapshots(pd.date_range("2013-01-01", periods=2, freq="h"))
     n.add("Carrier", "import gas")
+    n.add("Bus", "gas source")
     n.add("Bus", "GB fuel")
     n.add("Bus", "DE fuel")
     n.add(
-        "Generator",
+        "Link",
         "GB gas import",
-        bus="GB fuel",
+        bus0="gas source",
+        bus1="GB fuel",
         carrier="import gas",
         p_nom=10,
+        efficiency=1,
         marginal_cost=1,
     )
     n.add(
         "Generator",
         "DE gas import",
-        bus="DE fuel",
+        bus="GB fuel",
         carrier="import gas",
         p_nom=10,
         marginal_cost=1,
@@ -125,6 +129,66 @@ def test_add_import_limit_constraint_honours_limit(
 
     constraint = n.model.constraints[constraint_name]
     assert constraint.rhs.item() == pytest.approx(1e6 * 2 / 8760)
+
+
+def test_import_assets_are_scoped_to_category() -> None:
+    n = pypsa.Network()
+    n.add("Carrier", "import gas")
+    n.add("Carrier", "import methanol")
+    n.add("Carrier", "import H2")
+    n.add("Carrier", "import NH3")
+    n.add("Bus", "source")
+    n.add("Bus", "fuel")
+    n.add(
+        "Link",
+        "green gas import",
+        bus0="source",
+        bus1="fuel",
+        carrier="import gas",
+        p_nom=1,
+        efficiency=1,
+    )
+    n.add(
+        "Link",
+        "green methanol import",
+        bus0="source",
+        bus1="fuel",
+        carrier="import methanol",
+        p_nom=1,
+        efficiency=1,
+    )
+    n.add(
+        "Generator",
+        "fossil gas import",
+        bus="fuel",
+        carrier="import gas",
+        p_nom=1,
+    )
+    n.add(
+        "Generator",
+        "green hydrogen import",
+        bus="fuel",
+        carrier="import H2",
+        p_nom=1,
+    )
+    n.add(
+        "Generator",
+        "other ammonia import",
+        bus="fuel",
+        carrier="import NH3",
+        p_nom=1,
+    )
+
+    green_links, green_gens = import_assets_by_type(n, "green")
+    fossil_links, fossil_gens = import_assets_by_type(n, "fossil")
+    other_links, other_gens = import_assets_by_type(n, "other")
+
+    assert set(green_links) == {"green gas import", "green methanol import"}
+    assert set(green_gens) == {"green hydrogen import"}
+    assert fossil_links.empty
+    assert set(fossil_gens) == {"fossil gas import"}
+    assert other_links.empty
+    assert set(other_gens) == {"other ammonia import"}
 
 
 def test_add_import_limit_constraint_ignores_disabled_limit() -> None:

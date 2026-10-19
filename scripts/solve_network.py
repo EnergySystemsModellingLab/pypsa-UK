@@ -1619,6 +1619,29 @@ def add_flexible_egs_constraint(n):
     )
 
 
+def import_assets_by_type(
+    n: pypsa.Network, import_type: str
+) -> tuple[pd.Index, pd.Index]:
+    """Return imported links and generators belonging to one import category."""
+    carriers = {
+        "green": {
+            "links": ["import gas", "import methanol", "import oil"],
+            "generators": ["import H2"],
+        },
+        "fossil": {"links": [], "generators": ["import gas"]},
+        "other": {"links": [], "generators": ["import NH3"]},
+    }
+    if import_type not in carriers:
+        raise ValueError(f"Unsupported import category: {import_type}")
+
+    category = carriers[import_type]
+    import_links = n.links.index[n.links.carrier.isin(category["links"])]
+    import_gens = n.generators.index[
+        n.generators.carrier.isin(category["generators"])
+    ]
+    return import_links, import_gens
+
+
 def add_import_limit_constraint(
     n: pypsa.Network,
     sns: pd.DatetimeIndex,
@@ -1627,15 +1650,13 @@ def add_import_limit_constraint(
     limit: float | dict | bool | None = None,
 ) -> None:
     """
-    Add constraint for limiting green energy imports (synthetic and biomass).
-    Does not include fossil fuel imports.
+    Add a constraint limiting imports for one configured import category.
     """
 
     nyears = n.snapshot_weightings.generators.sum() / 8760
     weightings = n.snapshot_weightings.loc[sns, "generators"]
 
-    import_links = n.links.loc[n.links.carrier.str.contains("import")].index
-    import_gens = n.generators.loc[n.generators.carrier.str.contains("import")].index
+    import_links, import_gens = import_assets_by_type(n, type)
 
     if import_links.empty and import_gens.empty:
         return
