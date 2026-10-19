@@ -38,6 +38,7 @@ rule solve_network:
         foresight=config_provider("foresight"),
         planning_horizons=config_provider("planning_horizons"),
         RDIR=RDIR,
+        countries=config_provider("countries"),
         uk_settings=config_provider("uk_settings", "solve"),
         uk_settings_prepare=config_provider("uk_settings", "prepare"),
         sector=config_provider("sector"),

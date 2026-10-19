@@ -217,7 +217,7 @@ def manual_adjustment(load, fn_load, countries):
 def read_UK_load(years, year_ref):
 
     # Demand data is from: https://doi.org/10.1016/j.esr.2021.100743 which is available from 2008 and onwards
-    year = years.start.year
+    year = pd.Timestamp(years.start).year
     file_name = f"data/data_UK/ESPENI_{year}.csv"
 
     # check if file exists, else download from the zenodo repository
