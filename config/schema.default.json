@@ -6104,8 +6104,8 @@
           "description": "Configuration for fossil imports.",
           "properties": {
             "enable": {
-              "default": true,
-              "description": "Add option to include fossil imports.",
+              "default": false,
+              "description": "Add option to include this import category.",
               "type": "boolean"
             },
             "limit": {
@@ -6123,7 +6123,8 @@
                   "type": "boolean"
                 }
               ],
-              "default": false
+              "default": false,
+              "description": "Maximum allowed imports (TWh), globally or per country."
             },
             "limit_sense": {
               "default": "<=",
@@ -6134,6 +6135,7 @@
               "additionalProperties": {
                 "type": "number"
               },
+              "description": "Fossil import prices by carrier (currency/MWh).",
               "type": "object"
             }
           }
@@ -6142,8 +6144,8 @@
           "description": "Configuration for non-green, non-fossil imports.",
           "properties": {
             "enable": {
-              "default": true,
-              "description": "Add option to include other imports.",
+              "default": false,
+              "description": "Add option to include this import category.",
               "type": "boolean"
             },
             "limit": {
@@ -6161,7 +6163,8 @@
                   "type": "boolean"
                 }
               ],
-              "default": false
+              "default": false,
+              "description": "Maximum allowed imports (TWh), globally or per country."
             },
             "limit_sense": {
               "default": "<=",
@@ -6172,6 +6175,7 @@
               "additionalProperties": {
                 "type": "number"
               },
+              "description": "Other import prices by carrier (currency/MWh).",
               "type": "object"
             }
           }
@@ -8703,8 +8707,8 @@
       "description": "Configuration for fossil imports.",
       "properties": {
         "enable": {
-          "default": true,
-          "description": "Add option to include fossil imports.",
+          "default": false,
+          "description": "Add option to include this import category.",
           "type": "boolean"
         },
         "limit": {
@@ -8722,7 +8726,8 @@
               "type": "boolean"
             }
           ],
-          "default": false
+          "default": false,
+          "description": "Maximum allowed imports (TWh), globally or per country."
         },
         "limit_sense": {
           "default": "<=",
@@ -8733,6 +8738,7 @@
           "additionalProperties": {
             "type": "number"
           },
+          "description": "Fossil import prices by carrier (currency/MWh).",
           "type": "object"
         }
       }
@@ -9628,8 +9634,8 @@
       "description": "Configuration for non-green, non-fossil imports.",
       "properties": {
         "enable": {
-          "default": true,
-          "description": "Add option to include other imports.",
+          "default": false,
+          "description": "Add option to include this import category.",
           "type": "boolean"
         },
         "limit": {
@@ -9647,7 +9653,8 @@
               "type": "boolean"
             }
           ],
-          "default": false
+          "default": false,
+          "description": "Maximum allowed imports (TWh), globally or per country."
         },
         "limit_sense": {
           "default": "<=",
@@ -9658,6 +9665,7 @@
           "additionalProperties": {
             "type": "number"
           },
+          "description": "Other import prices by carrier (currency/MWh).",
           "type": "object"
         }
       }
@@ -14470,8 +14478,8 @@
           "description": "Configuration for fossil imports.",
           "properties": {
             "enable": {
-              "default": true,
-              "description": "Add option to include fossil imports.",
+              "default": false,
+              "description": "Add option to include this import category.",
               "type": "boolean"
             },
             "limit": {
@@ -14489,7 +14497,8 @@
                   "type": "boolean"
                 }
               ],
-              "default": false
+              "default": false,
+              "description": "Maximum allowed imports (TWh), globally or per country."
             },
             "limit_sense": {
               "default": "<=",
@@ -14500,6 +14509,7 @@
               "additionalProperties": {
                 "type": "number"
               },
+              "description": "Fossil import prices by carrier (currency/MWh).",
               "type": "object"
             }
           }
@@ -14508,8 +14518,8 @@
           "description": "Configuration for non-green, non-fossil imports.",
           "properties": {
             "enable": {
-              "default": true,
-              "description": "Add option to include other imports.",
+              "default": false,
+              "description": "Add option to include this import category.",
               "type": "boolean"
             },
             "limit": {
@@ -14527,7 +14537,8 @@
                   "type": "boolean"
                 }
               ],
-              "default": false
+              "default": false,
+              "description": "Maximum allowed imports (TWh), globally or per country."
             },
             "limit_sense": {
               "default": "<=",
@@ -14538,6 +14549,7 @@
               "additionalProperties": {
                 "type": "number"
               },
+              "description": "Other import prices by carrier (currency/MWh).",
               "type": "object"
             }
           }

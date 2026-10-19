@@ -6455,7 +6455,7 @@ def add_import_options(
     spatial: SimpleNamespace,
     gas_input_nodes: pd.DataFrame,
     import_type: str,
-    import_config: dict | None = None,
+    import_config: dict,
 ):
     """
     Add import options for a configured category.
@@ -6472,14 +6472,10 @@ def add_import_options(
         Locations of gas input nodes split by LNG and pipeline.
     import_type : str
         Category of imports to add: green, fossil, or other.
-    import_config : dict, optional
-        Category-specific settings, defaulting to the corresponding sector setting.
+    import_config : dict
+        Category-specific settings selected by the caller.
     """
 
-    if import_config is None:
-        import_config = options.get(f"{import_type}_imports")
-        if import_config is None and import_type == "green":
-            import_config = options.get("imports", {})
     import_options = import_config["price"]
     logger.info(f"Adding {import_type} import options:\n{pd.Series(import_options)}")
 

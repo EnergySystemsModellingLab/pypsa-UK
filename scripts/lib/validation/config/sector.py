@@ -393,20 +393,38 @@ class _ImportsConfig(ConfigModel):
     )
 
 
-class _FossilImportsConfig(_ImportsConfig):
+class _ImportCategoryConfig(_ImportsConfig):
+    """Shared configuration for non-legacy import categories."""
+
+    enable: bool = Field(
+        False, description="Add option to include this import category."
+    )
+    limit: float | dict[str, float] | bool = Field(
+        False,
+        description="Maximum allowed imports (TWh), globally or per country.",
+    )
+    price: dict[str, float] = Field(
+        default_factory=dict,
+        description="Import prices by carrier (currency/MWh).",
+    )
+
+
+class _FossilImportsConfig(_ImportCategoryConfig):
     """Configuration for fossil imports."""
 
-    enable: bool = Field(True, description="Add option to include fossil imports.")
-    limit: float | dict[str, float] | bool = Field(False)
-    price: dict[str, float] = Field(default_factory=lambda: {"gas": 50})
+    price: dict[str, float] = Field(
+        default_factory=lambda: {"gas": 50},
+        description="Fossil import prices by carrier (currency/MWh).",
+    )
 
 
-class _OtherImportsConfig(_ImportsConfig):
+class _OtherImportsConfig(_ImportCategoryConfig):
     """Configuration for non-green, non-fossil imports."""
 
-    enable: bool = Field(True, description="Add option to include other imports.")
-    limit: float | dict[str, float] | bool = Field(False)
-    price: dict[str, float] = Field(default_factory=lambda: {"NH3": 125})
+    price: dict[str, float] = Field(
+        default_factory=lambda: {"NH3": 125},
+        description="Other import prices by carrier (currency/MWh).",
+    )
 
 
 class SectorConfig(BaseModel):

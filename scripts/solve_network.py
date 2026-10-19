@@ -36,7 +36,10 @@ from linopy.constants import SolverStatus, TerminationCondition
 from linopy.remote.oetc import OetcCredentials, OetcHandler, OetcSettings
 from pypsa.descriptors import get_activity_mask
 
-from scripts.prepare_sector_network import determine_emission_sectors
+from scripts.prepare_sector_network import (
+    determine_emission_sectors,
+    get_import_configs,
+)
 from scripts._benchmark import memory_logger
 from scripts._helpers import (
     PYPSA_V1,
@@ -1867,13 +1870,7 @@ def extra_functionality(
     if config["sector"]["enhanced_geothermal"]["enable"]:
         add_flexible_egs_constraint(n)
 
-    sector_options = config.get("sector", {})
-    import_options = {
-        "green": sector_options.get("green_imports")
-        or sector_options.get("imports", {}),
-        "fossil": sector_options.get("fossil_imports") or {},
-        "other": sector_options.get("other_imports") or {},
-    }
+    import_options = get_import_configs(config.get("sector", {}))
     for import_type, options in import_options.items():
         if options.get("enable", False):
             add_import_limit_constraint(

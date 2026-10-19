@@ -134,6 +134,13 @@ def test_sector_import_categories_are_validated_and_preserved():
     assert config.sector.other_imports.price["NH3"] == 125
 
 
+def test_new_import_categories_are_disabled_when_omitted():
+    config = validate_config({})
+
+    assert config.sector.fossil_imports.enable is False
+    assert config.sector.other_imports.enable is False
+
+
 class TestPlanningHorizonsNormalization:
     """Tests for planning_horizons validation and normalization."""
 
