@@ -6441,8 +6441,11 @@ def add_enhanced_geothermal(
 
 def get_import_configs(options: dict) -> dict:
     """Return import settings by category, falling back to legacy green imports."""
+    green_imports = options.get("green_imports")
+    if green_imports is None:
+        green_imports = options.get("imports", {})
     return {
-        "green": options.get("green_imports") or options.get("imports", {}),
+        "green": green_imports,
         "fossil": options.get("fossil_imports") or {},
         "other": options.get("other_imports") or {},
     }

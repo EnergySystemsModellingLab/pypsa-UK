@@ -6105,7 +6105,7 @@
           "properties": {
             "enable": {
               "default": false,
-              "description": "Add option to include this import category.",
+              "description": "Add option to include this import category; disabled by default.",
               "type": "boolean"
             },
             "limit": {
@@ -6124,7 +6124,7 @@
                 }
               ],
               "default": false,
-              "description": "Maximum allowed imports (TWh), globally or per country."
+              "description": "Maximum allowed imports (TWh), globally or per country; false disables the limit."
             },
             "limit_sense": {
               "default": "<=",
@@ -6145,7 +6145,7 @@
           "properties": {
             "enable": {
               "default": false,
-              "description": "Add option to include this import category.",
+              "description": "Add option to include this import category; disabled by default.",
               "type": "boolean"
             },
             "limit": {
@@ -6164,7 +6164,7 @@
                 }
               ],
               "default": false,
-              "description": "Maximum allowed imports (TWh), globally or per country."
+              "description": "Maximum allowed imports (TWh), globally or per country; false disables the limit."
             },
             "limit_sense": {
               "default": "<=",
@@ -8708,7 +8708,7 @@
       "properties": {
         "enable": {
           "default": false,
-          "description": "Add option to include this import category.",
+          "description": "Add option to include this import category; disabled by default.",
           "type": "boolean"
         },
         "limit": {
@@ -8727,7 +8727,7 @@
             }
           ],
           "default": false,
-          "description": "Maximum allowed imports (TWh), globally or per country."
+          "description": "Maximum allowed imports (TWh), globally or per country; false disables the limit."
         },
         "limit_sense": {
           "default": "<=",
@@ -9635,7 +9635,7 @@
       "properties": {
         "enable": {
           "default": false,
-          "description": "Add option to include this import category.",
+          "description": "Add option to include this import category; disabled by default.",
           "type": "boolean"
         },
         "limit": {
@@ -9654,7 +9654,7 @@
             }
           ],
           "default": false,
-          "description": "Maximum allowed imports (TWh), globally or per country."
+          "description": "Maximum allowed imports (TWh), globally or per country; false disables the limit."
         },
         "limit_sense": {
           "default": "<=",
@@ -14479,7 +14479,7 @@
           "properties": {
             "enable": {
               "default": false,
-              "description": "Add option to include this import category.",
+              "description": "Add option to include this import category; disabled by default.",
               "type": "boolean"
             },
             "limit": {
@@ -14498,7 +14498,7 @@
                 }
               ],
               "default": false,
-              "description": "Maximum allowed imports (TWh), globally or per country."
+              "description": "Maximum allowed imports (TWh), globally or per country; false disables the limit."
             },
             "limit_sense": {
               "default": "<=",
@@ -14519,7 +14519,7 @@
           "properties": {
             "enable": {
               "default": false,
-              "description": "Add option to include this import category.",
+              "description": "Add option to include this import category; disabled by default.",
               "type": "boolean"
             },
             "limit": {
@@ -14538,7 +14538,7 @@
                 }
               ],
               "default": false,
-              "description": "Maximum allowed imports (TWh), globally or per country."
+              "description": "Maximum allowed imports (TWh), globally or per country; false disables the limit."
             },
             "limit_sense": {
               "default": "<=",

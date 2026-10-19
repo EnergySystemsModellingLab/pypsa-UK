@@ -2,10 +2,13 @@
 #
 # SPDX-License-Identifier: MIT
 
+from types import SimpleNamespace
+
 import pandas as pd
 import pypsa
 import pytest
 
+from scripts.prepare_sector_network import add_import_options, get_import_configs
 from scripts.solve_network import (
     add_co2_atmosphere_constraint,
     add_import_limit_constraint,
@@ -14,7 +17,6 @@ from scripts.solve_network import (
     import_assets_by_type,
     valid_local_co2_regions,
 )
-from scripts.prepare_sector_network import get_import_configs
 
 
 @pytest.fixture(scope="function")
@@ -283,6 +285,42 @@ def test_get_import_configs_supports_categories_and_legacy_green_fallback() -> N
         "fossil": {},
         "other": {},
     }
+    assert get_import_configs(
+        {"green_imports": {}, "imports": green}
+    )["green"] == {}
+
+
+@pytest.mark.parametrize(
+    ("import_type", "carrier", "settings", "bus"),
+    [
+        ("fossil", "import gas", {"gas": 50}, "GB gas"),
+        ("other", "import NH3", {"NH3": 125}, "GB ammonia"),
+    ],
+)
+def test_add_import_options_builds_category_assets(
+    import_type, carrier, settings, bus
+):
+    n = pypsa.Network()
+    n.add("Carrier", carrier)
+    n.add("Bus", bus)
+    if import_type == "fossil":
+        gas_input_nodes = pd.DataFrame({"lng": [1.0]}, index=["GB"])
+        spatial = SimpleNamespace(gas=SimpleNamespace(nodes=[bus]))
+    else:
+        gas_input_nodes = pd.DataFrame({"lng": [], "pipeline": []})
+        spatial = SimpleNamespace(ammonia=SimpleNamespace(nodes=[bus]))
+
+    add_import_options(
+        n,
+        pd.DataFrame(),
+        {"ammonia": True},
+        spatial,
+        gas_input_nodes,
+        import_type,
+        {"price": settings},
+    )
+
+    assert carrier in n.generators.carrier.values
 
 
 def test_calculate_co2_limit_supports_relative_and_absolute_budgets() -> None:

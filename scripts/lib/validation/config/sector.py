@@ -397,11 +397,12 @@ class _ImportCategoryConfig(_ImportsConfig):
     """Shared configuration for non-legacy import categories."""
 
     enable: bool = Field(
-        False, description="Add option to include this import category."
+        False,
+        description="Add option to include this import category; disabled by default.",
     )
     limit: float | dict[str, float] | bool = Field(
         False,
-        description="Maximum allowed imports (TWh), globally or per country.",
+        description="Maximum allowed imports (TWh), globally or per country; false disables the limit.",
     )
     price: dict[str, float] = Field(
         default_factory=dict,
