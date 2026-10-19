@@ -233,7 +233,7 @@ def test_add_import_limit_constraint_requires_one_category() -> None:
     with pytest.raises(TypeError, match="Missing required import category"):
         add_import_limit_constraint(n, snapshots)
     with pytest.raises(ValueError, match="Specify only one"):
-        add_import_limit_constraint(n, snapshots, "green", import_type="green")
+        add_import_limit_constraint(n, snapshots, "green", type="green")
 
 
 def test_add_import_limit_constraint_supports_legacy_type_keyword() -> None:
