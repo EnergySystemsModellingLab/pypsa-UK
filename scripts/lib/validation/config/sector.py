@@ -1004,7 +1004,7 @@ class SectorConfig(BaseModel):
     )
     green_imports: _ImportsConfig | None = Field(
         None,
-        description="Green import configuration. Defaults to the legacy `imports` setting when omitted.",
+        description="Green import configuration. Uses legacy `imports` when omitted or null; an empty mapping explicitly disables green imports.",
     )
     fossil_imports: _FossilImportsConfig = Field(
         default_factory=_FossilImportsConfig,

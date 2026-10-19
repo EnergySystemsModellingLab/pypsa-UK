@@ -6098,7 +6098,7 @@
             }
           ],
           "default": null,
-          "description": "Green import configuration. Defaults to the legacy `imports` setting when omitted."
+          "description": "Green import configuration. Uses legacy `imports` when omitted or null; an empty mapping explicitly disables green imports."
         },
         "fossil_imports": {
           "description": "Configuration for fossil imports.",
@@ -14472,7 +14472,7 @@
             }
           ],
           "default": null,
-          "description": "Green import configuration. Defaults to the legacy `imports` setting when omitted."
+          "description": "Green import configuration. Uses legacy `imports` when omitted or null; an empty mapping explicitly disables green imports."
         },
         "fossil_imports": {
           "description": "Configuration for fossil imports.",

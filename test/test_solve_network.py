@@ -291,14 +291,14 @@ def test_get_import_configs_supports_categories_and_legacy_green_fallback() -> N
 
 
 @pytest.mark.parametrize(
-    ("import_type", "carrier", "settings", "bus"),
+    ("import_type", "carrier", "settings", "bus", "p_nom"),
     [
-        ("fossil", "import gas", {"gas": 50}, "GB gas"),
-        ("other", "import NH3", {"NH3": 125}, "GB ammonia"),
+        ("fossil", "import gas", {"gas": 50}, "GB gas", 1.0),
+        ("other", "import NH3", {"NH3": 125}, "GB ammonia", 1e7),
     ],
 )
 def test_add_import_options_builds_category_assets(
-    import_type, carrier, settings, bus
+    import_type, carrier, settings, bus, p_nom
 ):
     n = pypsa.Network()
     n.add("Carrier", carrier)
@@ -320,7 +320,10 @@ def test_add_import_options_builds_category_assets(
         {"price": settings},
     )
 
-    assert carrier in n.generators.carrier.values
+    generator = n.generators.loc[n.generators.carrier == carrier]
+    assert generator.index.tolist() == [f"{bus} import"]
+    assert generator.bus.item() == bus
+    assert generator.p_nom.item() == pytest.approx(p_nom)
 
 
 def test_calculate_co2_limit_supports_relative_and_absolute_budgets() -> None:
