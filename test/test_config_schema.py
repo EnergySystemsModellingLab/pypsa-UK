@@ -118,6 +118,22 @@ def test_config_schema_json_in_sync(schema_file, pytestconfig):
     )
 
 
+def test_sector_import_categories_are_validated_and_preserved():
+    config = validate_config(
+        {
+            "sector": {
+                "green_imports": {"enable": True, "price": {"gas": 122}},
+                "fossil_imports": {"enable": True, "price": {"gas": 50}},
+                "other_imports": {"enable": True, "price": {"NH3": 125}},
+            }
+        }
+    )
+
+    assert config.sector.green_imports.enable
+    assert config.sector.fossil_imports.price["gas"] == 50
+    assert config.sector.other_imports.price["NH3"] == 125
+
+
 class TestPlanningHorizonsNormalization:
     """Tests for planning_horizons validation and normalization."""
 

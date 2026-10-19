@@ -14,6 +14,7 @@ from scripts.solve_network import (
     import_assets_by_type,
     valid_local_co2_regions,
 )
+from scripts.prepare_sector_network import get_import_configs
 
 
 @pytest.fixture(scope="function")
@@ -262,6 +263,26 @@ def test_add_import_limit_constraint_ignores_disabled_limit() -> None:
     add_import_limit_constraint(n, n.snapshots, import_type="green", limit=False)
 
     assert "green_import_limit" not in n.model.constraints
+
+
+def test_get_import_configs_supports_categories_and_legacy_green_fallback() -> None:
+    green = {"enable": True, "price": {"gas": 122}}
+    fossil = {"enable": True, "price": {"gas": 50}}
+    other = {"enable": True, "price": {"NH3": 125}}
+
+    assert get_import_configs(
+        {
+            "green_imports": green,
+            "fossil_imports": fossil,
+            "other_imports": other,
+            "imports": {"enable": False},
+        }
+    ) == {"green": green, "fossil": fossil, "other": other}
+    assert get_import_configs({"imports": green}) == {
+        "green": green,
+        "fossil": {},
+        "other": {},
+    }
 
 
 def test_calculate_co2_limit_supports_relative_and_absolute_budgets() -> None:

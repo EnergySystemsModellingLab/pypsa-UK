@@ -6439,16 +6439,26 @@ def add_enhanced_geothermal(
             )
 
 
+def get_import_configs(options: dict) -> dict:
+    """Return import settings by category, falling back to legacy green imports."""
+    return {
+        "green": options.get("green_imports") or options.get("imports", {}),
+        "fossil": options.get("fossil_imports") or {},
+        "other": options.get("other_imports") or {},
+    }
+
+
 def add_import_options(
     n: pypsa.Network,
     costs: pd.DataFrame,
     options: dict,
     spatial: SimpleNamespace,
     gas_input_nodes: pd.DataFrame,
-    type: str,
+    import_type: str,
+    import_config: dict | None = None,
 ):
     """
-    Add green energy import options.
+    Add import options for a configured category.
 
     Parameters
     ----------
@@ -6460,11 +6470,18 @@ def add_import_options(
         Configuration options containing spatial information on methanol, oil, gas and ammonia nodes
     gas_input_nodes : pd.DataFrame
         Locations of gas input nodes split by LNG and pipeline.
+    import_type : str
+        Category of imports to add: green, fossil, or other.
+    import_config : dict, optional
+        Category-specific settings, defaulting to the corresponding sector setting.
     """
 
-    import_config = options[f"{type}_imports"]
+    if import_config is None:
+        import_config = options.get(f"{import_type}_imports")
+        if import_config is None and import_type == "green":
+            import_config = options.get("imports", {})
     import_options = import_config["price"]
-    logger.info(f"Adding {type} import options:\n{pd.Series(import_options)}")
+    logger.info(f"Adding {import_type} import options:\n{pd.Series(import_options)}")
 
     if "methanol" in import_options:
         co2_intensity = costs.at["methanolisation", "carbondioxide-input"]
@@ -6496,7 +6513,7 @@ def add_import_options(
             p_nom=1e7,
         )
 
-    if "gas" in import_options and type == "green":
+    if "gas" in import_options and import_type == "green":
         co2_intensity = costs.at["gas", "CO2 intensity"]
 
         p_nom = gas_input_nodes["lng"].dropna()
@@ -6519,7 +6536,7 @@ def add_import_options(
             p_nom=p_nom / co2_intensity,
         )
 
-    if "gas" in import_options and type == "fossil":
+    if "gas" in import_options and import_type == "fossil":
         p_nom = gas_input_nodes["lng"].dropna()
         p_nom.rename(lambda x: x + " gas", inplace=True)  #
         if len(spatial.gas.nodes) == 1:
@@ -7382,8 +7399,17 @@ def main(
             egs_capacity_factors=inputs.egs_capacity_factors,
         )
 
-    if options["imports"]["enable"]:
-        add_import_options(n, costs, options, spatial, gas_input_nodes)
+    for import_type, import_config in get_import_configs(options).items():
+        if import_config.get("enable", False):
+            add_import_options(
+                n,
+                costs,
+                options,
+                spatial,
+                gas_input_nodes,
+                import_type,
+                import_config,
+            )
 
     if options["gas_distribution_grid"]:
         insert_gas_distribution_costs(n, costs, options=options)

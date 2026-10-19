@@ -6050,6 +6050,131 @@
               "type": "object"
             }
           }
+        },
+        "green_imports": {
+          "anyOf": [
+            {
+              "description": "Configuration for `sector.imports` settings.",
+              "properties": {
+                "enable": {
+                  "default": false,
+                  "description": "Add option to include renewable energy imports.",
+                  "type": "boolean"
+                },
+                "limit": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "additionalProperties": {
+                        "type": "number"
+                      },
+                      "type": "object"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Maximum allowed renewable energy imports (TWh), globally or per country."
+                },
+                "limit_sense": {
+                  "default": "<=",
+                  "description": "Sense of the limit.",
+                  "type": "string"
+                },
+                "price": {
+                  "additionalProperties": {
+                    "type": "number"
+                  },
+                  "description": "Price for importing renewable energy of carrier.",
+                  "type": "object"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Green import configuration. Defaults to the legacy `imports` setting when omitted."
+        },
+        "fossil_imports": {
+          "description": "Configuration for fossil imports.",
+          "properties": {
+            "enable": {
+              "default": true,
+              "description": "Add option to include fossil imports.",
+              "type": "boolean"
+            },
+            "limit": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "additionalProperties": {
+                    "type": "number"
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "boolean"
+                }
+              ],
+              "default": false
+            },
+            "limit_sense": {
+              "default": "<=",
+              "description": "Sense of the limit.",
+              "type": "string"
+            },
+            "price": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            }
+          }
+        },
+        "other_imports": {
+          "description": "Configuration for non-green, non-fossil imports.",
+          "properties": {
+            "enable": {
+              "default": true,
+              "description": "Add option to include other imports.",
+              "type": "boolean"
+            },
+            "limit": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "additionalProperties": {
+                    "type": "number"
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "boolean"
+                }
+              ],
+              "default": false
+            },
+            "limit_sense": {
+              "default": "<=",
+              "description": "Sense of the limit.",
+              "type": "string"
+            },
+            "price": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            }
+          }
         }
       }
     },
@@ -8574,6 +8699,44 @@
         }
       }
     },
+    "_FossilImportsConfig": {
+      "description": "Configuration for fossil imports.",
+      "properties": {
+        "enable": {
+          "default": true,
+          "description": "Add option to include fossil imports.",
+          "type": "boolean"
+        },
+        "limit": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "default": false
+        },
+        "limit_sense": {
+          "default": "<=",
+          "description": "Sense of the limit.",
+          "type": "string"
+        },
+        "price": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        }
+      }
+    },
     "_HeatSourceMapConfig": {
       "description": "Configuration for `plotting.heat_source_map` settings.",
       "properties": {
@@ -9458,6 +9621,44 @@
           "default": 180.0,
           "description": "The angle between the North and the sun with panels on the local horizon.",
           "type": "number"
+        }
+      }
+    },
+    "_OtherImportsConfig": {
+      "description": "Configuration for non-green, non-fossil imports.",
+      "properties": {
+        "enable": {
+          "default": true,
+          "description": "Add option to include other imports.",
+          "type": "boolean"
+        },
+        "limit": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "default": false
+        },
+        "limit_sense": {
+          "default": "<=",
+          "description": "Sense of the limit.",
+          "type": "string"
+        },
+        "price": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
         }
       }
     },
@@ -14212,6 +14413,131 @@
                 "type": "number"
               },
               "description": "Price for importing renewable energy of carrier.",
+              "type": "object"
+            }
+          }
+        },
+        "green_imports": {
+          "anyOf": [
+            {
+              "description": "Configuration for `sector.imports` settings.",
+              "properties": {
+                "enable": {
+                  "default": false,
+                  "description": "Add option to include renewable energy imports.",
+                  "type": "boolean"
+                },
+                "limit": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "additionalProperties": {
+                        "type": "number"
+                      },
+                      "type": "object"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Maximum allowed renewable energy imports (TWh), globally or per country."
+                },
+                "limit_sense": {
+                  "default": "<=",
+                  "description": "Sense of the limit.",
+                  "type": "string"
+                },
+                "price": {
+                  "additionalProperties": {
+                    "type": "number"
+                  },
+                  "description": "Price for importing renewable energy of carrier.",
+                  "type": "object"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Green import configuration. Defaults to the legacy `imports` setting when omitted."
+        },
+        "fossil_imports": {
+          "description": "Configuration for fossil imports.",
+          "properties": {
+            "enable": {
+              "default": true,
+              "description": "Add option to include fossil imports.",
+              "type": "boolean"
+            },
+            "limit": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "additionalProperties": {
+                    "type": "number"
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "boolean"
+                }
+              ],
+              "default": false
+            },
+            "limit_sense": {
+              "default": "<=",
+              "description": "Sense of the limit.",
+              "type": "string"
+            },
+            "price": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            }
+          }
+        },
+        "other_imports": {
+          "description": "Configuration for non-green, non-fossil imports.",
+          "properties": {
+            "enable": {
+              "default": true,
+              "description": "Add option to include other imports.",
+              "type": "boolean"
+            },
+            "limit": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "additionalProperties": {
+                    "type": "number"
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "boolean"
+                }
+              ],
+              "default": false
+            },
+            "limit_sense": {
+              "default": "<=",
+              "description": "Sense of the limit.",
+              "type": "string"
+            },
+            "price": {
+              "additionalProperties": {
+                "type": "number"
+              },
               "type": "object"
             }
           }

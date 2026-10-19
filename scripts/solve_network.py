@@ -1869,11 +1869,10 @@ def extra_functionality(
 
     sector_options = config.get("sector", {})
     import_options = {
-        "green": sector_options.get(
-            "green_imports", sector_options.get("imports", {})
-        ),
-        "fossil": sector_options.get("fossil_imports", {}),
-        "other": sector_options.get("other_imports", {}),
+        "green": sector_options.get("green_imports")
+        or sector_options.get("imports", {}),
+        "fossil": sector_options.get("fossil_imports") or {},
+        "other": sector_options.get("other_imports") or {},
     }
     for import_type, options in import_options.items():
         if options.get("enable", False):

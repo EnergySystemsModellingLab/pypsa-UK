@@ -370,7 +370,7 @@ class _SolidBiomassImportConfig(BaseModel):
     )
 
 
-class _ImportsConfig(BaseModel):
+class _ImportsConfig(ConfigModel):
     """Configuration for `sector.imports` settings."""
 
     enable: bool = Field(
@@ -391,6 +391,22 @@ class _ImportsConfig(BaseModel):
         },
         description="Price for importing renewable energy of carrier.",
     )
+
+
+class _FossilImportsConfig(_ImportsConfig):
+    """Configuration for fossil imports."""
+
+    enable: bool = Field(True, description="Add option to include fossil imports.")
+    limit: float | dict[str, float] | bool = Field(False)
+    price: dict[str, float] = Field(default_factory=lambda: {"gas": 50})
+
+
+class _OtherImportsConfig(_ImportsConfig):
+    """Configuration for non-green, non-fossil imports."""
+
+    enable: bool = Field(True, description="Add option to include other imports.")
+    limit: float | dict[str, float] | bool = Field(False)
+    price: dict[str, float] = Field(default_factory=lambda: {"NH3": 125})
 
 
 class SectorConfig(BaseModel):
@@ -966,4 +982,16 @@ class SectorConfig(BaseModel):
     )
     imports: _ImportsConfig = Field(
         default_factory=_ImportsConfig, description="Imports configuration."
+    )
+    green_imports: _ImportsConfig | None = Field(
+        None,
+        description="Green import configuration. Defaults to the legacy `imports` setting when omitted.",
+    )
+    fossil_imports: _FossilImportsConfig = Field(
+        default_factory=_FossilImportsConfig,
+        description="Fossil import configuration.",
+    )
+    other_imports: _OtherImportsConfig = Field(
+        default_factory=_OtherImportsConfig,
+        description="Other import configuration.",
     )
