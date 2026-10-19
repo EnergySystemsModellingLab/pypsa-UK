@@ -116,7 +116,7 @@ def test_add_import_limit_constraint_honours_limit(
     n.add(
         "Generator",
         "DE gas import",
-        bus="GB fuel",
+        bus="DE fuel",
         carrier="import gas",
         p_nom=10,
         marginal_cost=1,

@@ -1647,7 +1647,7 @@ def import_assets_by_type(
 def add_import_limit_constraint(
     n: pypsa.Network,
     sns: pd.DatetimeIndex,
-    type: str,
+    import_type: str,
     limit_sense: str = "<=",
     limit: float | dict | bool | None = None,
 ) -> None:
@@ -1658,7 +1658,7 @@ def add_import_limit_constraint(
     nyears = n.snapshot_weightings.generators.sum() / 8760
     weightings = n.snapshot_weightings.loc[sns, "generators"]
 
-    import_links, import_gens = import_assets_by_type(n, type)
+    import_links, import_gens = import_assets_by_type(n, import_type)
 
     if import_links.empty and import_gens.empty:
         return
@@ -1719,11 +1719,11 @@ def add_import_limit_constraint(
             lhs += (p_links * eff * weightings).sum()
         rhs = value * 1e6 * nyears
         suffix = f"_{country}" if country is not None else ""
-        name = f"{type}_import_limit{suffix}"
+        name = f"{import_type}_import_limit{suffix}"
         n.model.add_constraints(lhs, senses[limit_sense], rhs, name=name)
         logger.info(
             "Added %s import limit constraint%s with %s %s TWh_fuel/year",
-            type,
+            import_type,
             f" for {country}" if country is not None else "",
             limit_sense,
             value,
