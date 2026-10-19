@@ -125,7 +125,7 @@ def test_add_import_limit_constraint_honours_limit(
     n.add("Load", "DE load", bus="DE fuel", p_set=1)
     n.optimize.create_model()
 
-    add_import_limit_constraint(n, n.snapshots, type="green", limit=limit)
+    add_import_limit_constraint(n, n.snapshots, import_type="green", limit=limit)
 
     constraint = n.model.constraints[constraint_name]
     assert constraint.rhs.item() == pytest.approx(1e6 * 2 / 8760)
@@ -210,6 +210,40 @@ def test_import_assets_rejects_unknown_category() -> None:
         import_assets_by_type(pypsa.Network(), "unknown")
 
 
+def test_import_assets_rejects_unclassified_carriers() -> None:
+    n = pypsa.Network()
+    n.add("Carrier", "import ammonia")
+    n.add("Bus", "fuel")
+    n.add(
+        "Generator",
+        "ammonia import",
+        bus="fuel",
+        carrier="import ammonia",
+        p_nom=1,
+    )
+
+    with pytest.raises(ValueError, match="Unclassified import generators"):
+        import_assets_by_type(n, "other")
+
+
+def test_add_import_limit_constraint_requires_one_category() -> None:
+    n = pypsa.Network()
+    snapshots = pd.DatetimeIndex([])
+
+    with pytest.raises(TypeError, match="Missing required import category"):
+        add_import_limit_constraint(n, snapshots)
+    with pytest.raises(ValueError, match="Specify only one"):
+        add_import_limit_constraint(n, snapshots, "green", import_type="green")
+
+
+def test_add_import_limit_constraint_supports_legacy_type_keyword() -> None:
+    n = pypsa.Network()
+    n.set_snapshots(pd.date_range("2013-01-01", periods=1, freq="h"))
+
+    with pytest.warns(DeprecationWarning, match="use `import_type`"):
+        add_import_limit_constraint(n, n.snapshots, type="green", limit=False)
+
+
 def test_add_import_limit_constraint_ignores_disabled_limit() -> None:
     n = pypsa.Network()
     n.set_snapshots(pd.date_range("2013-01-01", periods=1, freq="h"))
@@ -225,7 +259,7 @@ def test_add_import_limit_constraint_ignores_disabled_limit() -> None:
     )
     n.optimize.create_model()
 
-    add_import_limit_constraint(n, n.snapshots, "green", limit=False)
+    add_import_limit_constraint(n, n.snapshots, import_type="green", limit=False)
 
     assert "green_import_limit" not in n.model.constraints
 

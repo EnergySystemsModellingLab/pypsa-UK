@@ -22,6 +22,7 @@ import logging
 import os
 import re
 import sys
+import warnings
 from functools import partial
 from typing import Any
 
@@ -1636,6 +1637,23 @@ def import_assets_by_type(
     if import_type not in IMPORT_CARRIERS_BY_TYPE:
         raise ValueError(f"Unsupported import category: {import_type}")
 
+    for component, category_key in (("links", "links"), ("generators", "generators")):
+        known_carriers = {
+            carrier
+            for category in IMPORT_CARRIERS_BY_TYPE.values()
+            for carrier in category[category_key]
+        }
+        component_imports = getattr(n, component)
+        unclassified = component_imports.loc[
+            component_imports.carrier.str.startswith("import ")
+            & ~component_imports.carrier.isin(known_carriers)
+        ]
+        if not unclassified.empty:
+            raise ValueError(
+                f"Unclassified import {component} found: "
+                f"{unclassified.carrier.unique().tolist()}"
+            )
+
     category = IMPORT_CARRIERS_BY_TYPE[import_type]
     import_links = n.links.index[n.links.carrier.isin(category["links"])]
     import_gens = n.generators.index[
@@ -1647,20 +1665,32 @@ def import_assets_by_type(
 def add_import_limit_constraint(
     n: pypsa.Network,
     sns: pd.DatetimeIndex,
-    import_type: str | None = None,
+    type: str | None = None,
     limit_sense: str = "<=",
     limit: float | dict | bool | None = None,
     *,
-    type: str | None = None,
+    import_type: str | None = None,
 ) -> None:
     """
-    Add a constraint limiting imports for one configured import category.
+    Add an import limit for green, fossil, or other configured imports.
+
+    Green imports include import gas, methanol, and oil Links plus import H2
+    Generators. Fossil imports include import gas Generators, and other imports
+    include import NH3 Generators. The legacy ``type`` argument is deprecated;
+    use ``import_type`` instead. Supplying both category arguments raises
+    ``ValueError``, supplying neither raises ``TypeError``, and unsupported
+    categories or unclassified import carriers raise ``ValueError``.
     """
 
     if type is not None:
         if import_type is not None:
             raise ValueError("Specify only one of import_type and type.")
         import_type = type
+        warnings.warn(
+            "The `type` argument is deprecated; use `import_type` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
     if import_type is None:
         raise TypeError("Missing required import category.")
 
@@ -1841,9 +1871,9 @@ def extra_functionality(
             add_import_limit_constraint(
                 n,
                 snapshots,
-                import_type,
-                options.get("limit_sense", "<="),
-                options.get("limit"),
+                limit_sense=options.get("limit_sense", "<="),
+                limit=options.get("limit"),
+                import_type=import_type,
             )
 
     base_year = snakemake.params.planning_horizons[0]
