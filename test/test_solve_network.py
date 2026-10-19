@@ -135,6 +135,7 @@ def test_import_assets_are_scoped_to_category() -> None:
     n = pypsa.Network()
     n.add("Carrier", "import gas")
     n.add("Carrier", "import methanol")
+    n.add("Carrier", "import oil")
     n.add("Carrier", "import H2")
     n.add("Carrier", "import NH3")
     n.add("Bus", "source")
@@ -145,6 +146,15 @@ def test_import_assets_are_scoped_to_category() -> None:
         bus0="source",
         bus1="fuel",
         carrier="import gas",
+        p_nom=1,
+        efficiency=1,
+    )
+    n.add(
+        "Link",
+        "green oil import",
+        bus0="source",
+        bus1="fuel",
+        carrier="import oil",
         p_nom=1,
         efficiency=1,
     )
@@ -183,12 +193,21 @@ def test_import_assets_are_scoped_to_category() -> None:
     fossil_links, fossil_gens = import_assets_by_type(n, "fossil")
     other_links, other_gens = import_assets_by_type(n, "other")
 
-    assert set(green_links) == {"green gas import", "green methanol import"}
+    assert set(green_links) == {
+        "green gas import",
+        "green methanol import",
+        "green oil import",
+    }
     assert set(green_gens) == {"green hydrogen import"}
     assert fossil_links.empty
     assert set(fossil_gens) == {"fossil gas import"}
     assert other_links.empty
     assert set(other_gens) == {"other ammonia import"}
+
+
+def test_import_assets_rejects_unknown_category() -> None:
+    with pytest.raises(ValueError, match="Unsupported import category"):
+        import_assets_by_type(pypsa.Network(), "unknown")
 
 
 def test_add_import_limit_constraint_ignores_disabled_limit() -> None:

@@ -46,6 +46,16 @@ from scripts._helpers import (
 
 logger = logging.getLogger(__name__)
 
+# Green gas imports are Links, while fossil gas imports are Generators.
+IMPORT_CARRIERS_BY_TYPE = {
+    "green": {
+        "links": ["import gas", "import methanol", "import oil"],
+        "generators": ["import H2"],
+    },
+    "fossil": {"links": [], "generators": ["import gas"]},
+    "other": {"links": [], "generators": ["import NH3"]},
+}
+
 # Allow for PyPSA versions <0.35
 if PYPSA_V1:
     pypsa.network.power_flow.logger.setLevel(logging.WARNING)
@@ -1623,18 +1633,10 @@ def import_assets_by_type(
     n: pypsa.Network, import_type: str
 ) -> tuple[pd.Index, pd.Index]:
     """Return imported links and generators belonging to one import category."""
-    carriers = {
-        "green": {
-            "links": ["import gas", "import methanol", "import oil"],
-            "generators": ["import H2"],
-        },
-        "fossil": {"links": [], "generators": ["import gas"]},
-        "other": {"links": [], "generators": ["import NH3"]},
-    }
-    if import_type not in carriers:
+    if import_type not in IMPORT_CARRIERS_BY_TYPE:
         raise ValueError(f"Unsupported import category: {import_type}")
 
-    category = carriers[import_type]
+    category = IMPORT_CARRIERS_BY_TYPE[import_type]
     import_links = n.links.index[n.links.carrier.isin(category["links"])]
     import_gens = n.generators.index[
         n.generators.carrier.isin(category["generators"])
