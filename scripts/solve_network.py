@@ -1647,13 +1647,22 @@ def import_assets_by_type(
 def add_import_limit_constraint(
     n: pypsa.Network,
     sns: pd.DatetimeIndex,
-    import_type: str,
+    import_type: str | None = None,
     limit_sense: str = "<=",
     limit: float | dict | bool | None = None,
+    *,
+    type: str | None = None,
 ) -> None:
     """
     Add a constraint limiting imports for one configured import category.
     """
+
+    if type is not None:
+        if import_type is not None:
+            raise ValueError("Specify only one of import_type and type.")
+        import_type = type
+    if import_type is None:
+        raise TypeError("Missing required import category.")
 
     nyears = n.snapshot_weightings.generators.sum() / 8760
     weightings = n.snapshot_weightings.loc[sns, "generators"]

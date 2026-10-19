@@ -125,7 +125,7 @@ def test_add_import_limit_constraint_honours_limit(
     n.add("Load", "DE load", bus="DE fuel", p_set=1)
     n.optimize.create_model()
 
-    add_import_limit_constraint(n, n.snapshots, "green", limit=limit)
+    add_import_limit_constraint(n, n.snapshots, type="green", limit=limit)
 
     constraint = n.model.constraints[constraint_name]
     assert constraint.rhs.item() == pytest.approx(1e6 * 2 / 8760)
