@@ -178,6 +178,15 @@ class TestPlanningHorizonsNormalization:
 
 
 class TestUKConfig:
+    def test_uk_distribution_key_option_defaults_to_disabled_and_is_configurable(self):
+        default_config = validate_config({})
+        assert default_config.uk_settings.data.uk_new_distribution_key is False
+
+        config = validate_config(
+            {"uk_settings": {"data": {"uk_new_distribution_key": True}}}
+        )
+        assert config.uk_settings.data.uk_new_distribution_key is True
+
     def test_validates_planned_hydrogen_and_single_node_regions(self):
         config = validate_config(
             {
