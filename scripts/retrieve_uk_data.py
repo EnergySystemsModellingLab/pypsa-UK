@@ -12,8 +12,6 @@ from pathlib import Path, PurePosixPath
 
 import requests
 
-from scripts._helpers import configure_logging
-
 logger = logging.getLogger(__name__)
 
 ZENODO_ARCHIVE_URL = "https://zenodo.org/api/records/20522643/files-archive"
@@ -80,6 +78,8 @@ def download_uk_data(destination: Path) -> None:
 
 
 if __name__ == "__main__":
+    from scripts._helpers import configure_logging
+
     if "snakemake" not in globals():
         from scripts._helpers import mock_snakemake
 

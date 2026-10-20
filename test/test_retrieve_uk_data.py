@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: MIT
 
 from io import BytesIO
-from pathlib import Path
 import zipfile
 
 import pytest
@@ -35,10 +34,10 @@ class FakeResponse:
 
 
 def test_download_extracts_archive_and_writes_marker(tmp_path, monkeypatch):
-    response = FakeResponse(
-        make_zip({"folder/UK_dataset.csv": b"value\n1\n"})
+    response = FakeResponse(make_zip({"folder/UK_dataset.csv": b"value\n1\n"}))
+    monkeypatch.setattr(
+        retrieve_uk_data.requests, "get", lambda *args, **kwargs: response
     )
-    monkeypatch.setattr(retrieve_uk_data.requests, "get", lambda *args, **kwargs: response)
 
     retrieve_uk_data.download_uk_data(tmp_path)
 
