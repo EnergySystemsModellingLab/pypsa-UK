@@ -26,6 +26,7 @@ rule retrieve_uk_data:
     """Downloads UK-specific input data from Zenodo."""
     output:
         marker="data/data_UK/.zenodo_20522643_complete",
+        uk_fertiliser="data/data_UK/uk_fertiliser.csv",
     log:
         logs("retrieve_uk_data.log"),
     retries: 3

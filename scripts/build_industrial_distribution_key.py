@@ -12,7 +12,6 @@ Dedicated keys use plant capacities instead of emissions: the steel routes (EAF,
 import logging
 import uuid
 from itertools import product
-from pathlib import Path
 
 import country_converter as coco
 import geopandas as gpd
@@ -196,21 +195,7 @@ def prepare_ammonia_database(
     # drop data for the UK
     df = df.query("Country != 'United Kingdom'")
 
-    if uk_fertiliser_file:
-        df_uk = pd.read_csv(uk_fertiliser_file, index_col=0)
-
-        conversion = 0.5  # assuming 500 gram ammonia per kg of fertiliser
-        df_uk["Ammonia [kt/a]"] = (
-            df_uk["Production (tonnes/year)"] * conversion * 1e-3
-        )
-        df_uk["Latitude"] = df_uk["lat"]
-        df_uk["Longitude"] = df_uk["lon"]
-        df_uk["Country"] = "United Kingdom"
-        df_uk["Source"] = df_uk["Sources"]
-        df_uk["Date"] = "22-09-2026"
-
-        matching_columns = df.columns.intersection(df_uk.columns)
-        df = pd.concat([df, df_uk[matching_columns]])
+    df = add_uk_fertiliser_ammonia(df, uk_fertiliser_file)
 
     ################################################################
     geometry = gpd.points_from_xy(df.Longitude, df.Latitude)
@@ -224,6 +209,28 @@ def prepare_ammonia_database(
     gdf.to_csv(snakemake.output.uk_ammonia_demand)
 
     return gdf
+
+
+def add_uk_fertiliser_ammonia(
+    ammonia_plants: pd.DataFrame,
+    uk_fertiliser_file: str | None,
+) -> pd.DataFrame:
+    """Append UK fertiliser plants to ammonia plant data when provided."""
+    if uk_fertiliser_file is None:
+        return ammonia_plants
+
+    uk_plants = pd.read_csv(uk_fertiliser_file, index_col=0)
+    uk_plants["Ammonia [kt/a]"] = (
+        uk_plants["Production (tonnes/year)"] * 0.5 * 1e-3
+    )
+    uk_plants["Latitude"] = uk_plants["lat"]
+    uk_plants["Longitude"] = uk_plants["lon"]
+    uk_plants["Country"] = "United Kingdom"
+    uk_plants["Source"] = uk_plants["Sources"]
+    uk_plants["Date"] = "22-09-2026"
+
+    matching_columns = ammonia_plants.columns.intersection(uk_plants.columns)
+    return pd.concat([ammonia_plants, uk_plants[matching_columns]])
 
 
 def prepare_refineries_supplement(
@@ -538,9 +545,7 @@ if __name__ == "__main__":
         snakemake.input.ammonia,
         regions,
         uk_fertiliser_file=(
-            Path(snakemake.input.uk_fertiliser).parent / "uk_fertiliser.csv"
-            if snakemake.input.uk_fertiliser
-            else None
+            snakemake.input.uk_fertiliser if "GB" in countries else None
         ),
     )
 

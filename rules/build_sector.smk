@@ -1131,7 +1131,7 @@ rule build_industrial_distribution_key:
         ammonia="data/ammonia_plants.csv",
         refineries_supplement="data/refineries-noneu.csv",
         uk_fertiliser=lambda w: (
-            rules.retrieve_uk_data.output.marker
+            rules.retrieve_uk_data.output.uk_fertiliser
             if "GB" in config_provider("countries")(w)
             else []
         ),
