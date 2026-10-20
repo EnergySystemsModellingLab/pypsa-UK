@@ -5,7 +5,11 @@
 
 import pandas as pd
 
-from scripts.build_industrial_distribution_key import add_uk_fertiliser_ammonia
+from scripts.build_industrial_distribution_key import (
+    UK_FERTILISER_SOURCE_DATE,
+    add_uk_fertiliser_ammonia,
+    select_uk_ammonia_demand,
+)
 
 
 def test_add_uk_fertiliser_ammonia_without_file_preserves_plants():
@@ -37,6 +41,7 @@ def test_add_uk_fertiliser_ammonia_appends_uk_sites(tmp_path):
                 "lat": 54.0,
                 "lon": -1.0,
                 "Sources": "UK source",
+                "Unmatched": "not retained",
             }
         ],
         index=["Plant"],
@@ -44,5 +49,34 @@ def test_add_uk_fertiliser_ammonia_appends_uk_sites(tmp_path):
 
     result = add_uk_fertiliser_ammonia(ammonia_plants, fertiliser_file)
 
-    assert result.loc["Plant", "Ammonia [kt/a]"] == 0.5
-    assert result.loc["Plant", "Country"] == "United Kingdom"
+    plant = result.loc["Plant"]
+    assert plant["Ammonia [kt/a]"] == 0.5
+    assert plant["Latitude"] == 54.0
+    assert plant["Longitude"] == -1.0
+    assert plant["Country"] == "United Kingdom"
+    assert plant["Source"] == "UK source"
+    assert plant["Date"] == UK_FERTILISER_SOURCE_DATE
+    assert "Unmatched" not in result.columns
+
+
+def test_select_uk_ammonia_demand_excludes_non_uk_sites():
+    ammonia_plants = pd.DataFrame(
+        [
+            {"Country": "United Kingdom", "Ammonia [kt/a]": 0.5},
+            {"Country": "France", "Ammonia [kt/a]": 2.0},
+        ]
+    )
+
+    result = select_uk_ammonia_demand(ammonia_plants)
+
+    assert result["Country"].tolist() == ["United Kingdom"]
+
+
+def test_select_uk_ammonia_demand_is_empty_without_uk_sites():
+    ammonia_plants = pd.DataFrame(
+        [{"Country": "France", "Ammonia [kt/a]": 2.0}]
+    )
+
+    result = select_uk_ammonia_demand(ammonia_plants)
+
+    assert result.empty

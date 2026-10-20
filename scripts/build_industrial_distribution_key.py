@@ -21,6 +21,8 @@ from scripts._helpers import configure_logging, set_scenario_config
 
 logger = logging.getLogger(__name__)
 cc = coco.CountryConverter()
+FERTILISER_TO_AMMONIA_FACTOR = 0.5  # depends on fertiliser product (e.g. urea)
+UK_FERTILISER_SOURCE_DATE = "22-09-2026"  # date stamp assigned to the UK source data
 
 
 def locate_missing_industrial_sites(df: pd.DataFrame) -> pd.DataFrame:
@@ -206,8 +208,6 @@ def prepare_ammonia_database(
     gdf.rename(columns={"name": "bus"}, inplace=True)
     gdf["country"] = gdf.bus.str[:2]
 
-    gdf.to_csv(snakemake.output.uk_ammonia_demand)
-
     return gdf
 
 
@@ -221,16 +221,23 @@ def add_uk_fertiliser_ammonia(
 
     uk_plants = pd.read_csv(uk_fertiliser_file, index_col=0)
     uk_plants["Ammonia [kt/a]"] = (
-        uk_plants["Production (tonnes/year)"] * 0.5 * 1e-3
+        uk_plants["Production (tonnes/year)"]
+        * FERTILISER_TO_AMMONIA_FACTOR
+        * 1e-3
     )
     uk_plants["Latitude"] = uk_plants["lat"]
     uk_plants["Longitude"] = uk_plants["lon"]
     uk_plants["Country"] = "United Kingdom"
     uk_plants["Source"] = uk_plants["Sources"]
-    uk_plants["Date"] = "22-09-2026"
+    uk_plants["Date"] = UK_FERTILISER_SOURCE_DATE
 
     matching_columns = ammonia_plants.columns.intersection(uk_plants.columns)
     return pd.concat([ammonia_plants, uk_plants[matching_columns]])
+
+
+def select_uk_ammonia_demand(ammonia_plants: pd.DataFrame) -> pd.DataFrame:
+    """Select UK ammonia sites for the dedicated UK demand output."""
+    return ammonia_plants.query("Country == 'United Kingdom'")
 
 
 def prepare_refineries_supplement(
@@ -548,6 +555,7 @@ if __name__ == "__main__":
             snakemake.input.uk_fertiliser if "GB" in countries else None
         ),
     )
+    select_uk_ammonia_demand(ammonia).to_csv(snakemake.output.uk_ammonia_demand)
 
     cement = prepare_gem_cement_database(snakemake.input.gem_gcpt, regions)
 
