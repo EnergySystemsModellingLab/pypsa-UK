@@ -14,6 +14,7 @@ load_dotenv()
 min_version("8.11")
 
 from scripts._helpers import (
+    get_import_carriers,
     get_rdir,
     get_scenarios,
     get_shadow,

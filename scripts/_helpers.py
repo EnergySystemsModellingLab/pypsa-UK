@@ -47,6 +47,28 @@ REGION_COLS = ["geometry", "name", "x", "y", "country"]
 PYPSA_V1 = bool(re.match(r"^1\.\d", pypsa.__version__))
 
 
+def get_import_configs(options: dict) -> dict:
+    """Return import settings by category, with legacy imports as green fallback."""
+    green_imports = options.get("green_imports")
+    if green_imports is None:
+        green_imports = options.get("imports", {})
+    return {
+        "green": green_imports,
+        "fossil": options.get("fossil_imports") or {},
+        "other": options.get("other_imports") or {},
+    }
+
+
+def get_import_carriers(options: dict) -> set[str]:
+    """Return carriers used by enabled import categories."""
+    return {
+        carrier
+        for import_config in get_import_configs(options).values()
+        if import_config.get("enable", False)
+        for carrier in import_config.get("price", {})
+    }
+
+
 def strip_if_str(value: Any) -> Any:
     """Return stripped strings while leaving other values unchanged."""
 
@@ -810,6 +832,7 @@ def load_cutout(
     atlite.Cutout
         Merged cutout with optional time selection applied.
     """
+
     if isinstance(cutout_files, str):
         cutout = atlite.Cutout(cutout_files, chunks=chunks)
     elif isinstance(cutout_files, list):
@@ -817,8 +840,19 @@ def load_cutout(
         combined_data = xr.concat(cutout_da, dim="time", data_vars="minimal")
         cutout = atlite.Cutout(NamedTemporaryFile().name, data=combined_data)
 
+    # Initializing the actual snapshots of the cutout 
+    year_actual = pd.to_datetime(cutout.coords["time"].data[0]).year
+    snapshots_actual = {"start": f"{year_actual}-01-01",
+                        "end": f"{year_actual + 1}-01-01",
+                        "inclusive": "left"}    
+    drop_leap_day = True # This only works if leap day is omitted
+    sns_actual = get_snapshots(snapshots_actual, drop_leap_day)
+
+    cutout.data = cutout.data.sel(time=sns_actual)
+
     if time is not None:
-        cutout.data = cutout.data.sel(time=time)
+        # To match the index of the network file, we replace the year in the snapshot, while hours of the year remain the same
+        cutout.coords["time"] = time
 
     return cutout
 

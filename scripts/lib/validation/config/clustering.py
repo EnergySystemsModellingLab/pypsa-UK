@@ -63,6 +63,14 @@ class _SimplifyNetworkConfig(BaseModel):
     )
 
 
+class _ClusterSubregionConfig(BaseModel):
+    geojson: str
+    id_field: str = "name"
+    allocation_method: Literal["load", "buses", "equal"] = "load"
+    min_clusters_per_subregion: int = 1
+    on_unassigned: Literal["nearest", "error"] = "nearest"
+
+
 class _ClusterNetworkConfig(BaseModel):
     """Configuration for `clustering.cluster_network` settings."""
 
@@ -81,6 +89,10 @@ class _ClusterNetworkConfig(BaseModel):
     hac_features: list[str] = Field(
         default_factory=lambda: ["wnd100m", "influx_direct"],
         description="List of meteorological variables contained in the weather data cutout that should be considered for hierarchical clustering.",
+    )
+    subregions: dict[str, _ClusterSubregionConfig] = Field(
+        default_factory=dict,
+        description="Optional polygon definitions for splitting countries into subregions before clustering.",
     )
 
 
@@ -148,6 +160,10 @@ class ClusteringConfig(BaseModel):
             "busmap",
             description="'busmap': Default. 'custom_busmap': Enable the use of custom busmaps in rule `cluster_network`. If activated the rule looks for provided busmaps at ``data/busmaps/simplified_{n_clusters}_{base_network}.csv`` which should have the same format as ``resources/busmap_cluster_network.csv``, i.e. the index should contain the buses of ``networks/simplified.nc``. {base_network} is the name of the selected base_network in electricity, e.g. ``gridkit``, ``osm-prebuilt``, or ``osm-raw``. {n_clusters} is ``clustering.cluster_network.n_clusters``. 'administrative': Clusters and indexes the network based on the administrative regions of the countries based on ``nuts3_shapes.geojson`` (level: 1, 2, 3, bz). 'custom_busshapes': Enable the use of custom shapes in rule `cluster_network`. If activated the rule looks for provided busshapes at ``data/busshapes/simplified_{n_clusters}_{base_network}.geojson``.",
         )
+    )
+    single_node_regions: list[str] = Field(
+        default_factory=list,
+        description="Regions that should always receive exactly one cluster.",
     )
     administrative: _AdministrativeConfig = Field(
         default_factory=_AdministrativeConfig,

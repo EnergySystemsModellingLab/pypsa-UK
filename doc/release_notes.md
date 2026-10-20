@@ -6,6 +6,12 @@
 <!-- Upcoming Release -->
 <!-- ================= -->
 
+* Feature: Add UK-specific configuration and workflow support for ECUK energy balances, planned hydrogen projects, depleted-gas-field storage potentials, and UK model settings. UK input datasets are supplied separately.
+
+* Fix: Build green, fossil, and other import assets from their category-specific settings, retaining the legacy `sector.imports` fallback for green imports.
+
+* Fix: Apply UK deployment-rate caps to new capacity only, weight minimum-capacity-factor constraints by snapshot duration, request gas-input data for enabled import categories, and allow UK gas-storage updates to be disabled.
+
 * Fix: `lines: types` must now define a line type for the 380 kV level; the config validation fails early with a clear message instead of the workflow failing later ([#2166](https://github.com/PyPSA/pypsa-eur/issues/2166)).
 
 * Feature: New switches `industry: solid_biomass_for_industry_cc`, `industry: gas_for_industry_cc` and `industry: process_emissions_cc` to disable the carbon capture options for solid biomass for industry, gas for industry and industrial process emissions. All default to `true`, which matches the previous behaviour ([#2357](https://github.com/PyPSA/pypsa-eur/pull/2357)).

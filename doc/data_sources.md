@@ -15,6 +15,13 @@ allows users to select specific versions of the data sources to use in their mod
 Next to the versioning and if the license allows, most datasets are also mirrored to a
 public file storage for the repository under `https://data.pypsa.org`.
 
+## UK-Specific Data
+
+Workflows that include Great Britain automatically download the UK-specific dataset
+from [Zenodo record 20522643](https://doi.org/10.5281/zenodo.20522643) into
+`data/data_UK`. The archive's folder structure is preserved. The downloaded files are
+not tracked by Git; the directory is retained in the repository as a placeholder.
+
 !!! note
     For users, selection and control over which data sources to use is managed through the configuration file.
     See [Data Configuration](configuration.md#data_cf) for details. In most cases you just wanna stick with the latest archive
@@ -132,4 +139,3 @@ Any new entries will be appended to the list.
 ## Data inventory
 
 {{ read_csv("doc/data_inventory.csv") }}
-

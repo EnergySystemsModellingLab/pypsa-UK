@@ -22,6 +22,18 @@ storage cached_http:
     provider="cached-http",
 
 
+rule retrieve_uk_data:
+    """Downloads UK-specific input data from Zenodo."""
+    output:
+        marker="data/data_UK/.zenodo_20522643_complete",
+        uk_fertiliser="data/data_UK/uk_fertiliser.csv",
+    log:
+        logs("retrieve_uk_data.log"),
+    retries: 3
+    script:
+        scripts("retrieve_uk_data.py")
+
+
 if (EUROSTAT_BALANCES_DATASET := dataset_version("eurostat_balances"))["source"] in [
     "primary",
     "archive",
@@ -837,6 +849,10 @@ if (LUISA_LAND_COVER_DATASET := dataset_version("luisa_land_cover"))["source"] i
 
 if (EEZ_DATASET := dataset_version("eez"))["source"] in ["primary"]:
 
+    # Retrieved from the PyPSA archive mirror rather than the marineregions.org
+    # download form: that form now rejects the scripted POST (it returns the HTML
+    # form again, which then fails to unpack). The mirror serves the identical
+    # v12_20231025 archive. See https://data.pypsa.org/workflows/eur/eez/
     rule retrieve_eez:
         """Downloads and unpacks the Marine Regions World EEZ shapes via the registration form."""
         output:
@@ -1476,6 +1492,13 @@ if (JRC_ARDECO_DATASET := dataset_version("jrc_ardeco"))["source"] in [
     "primary",
 ]:
 
+    # Retrieved from the PyPSA archive mirror rather than the JRC ARDECO API.
+    # The API host moved (urban.jrc.ec.europa.eu -> territorial.ec.europa.eu) and
+    # currently answers 500 for SNPTD. The previous rule wrote the response body
+    # unconditionally, so the HTML error page landed in the .csv outputs and the
+    # job still counted as successful; build_shapes then died on
+    # KeyError: 'LEVEL_ID'. storage() fails loudly on a bad response instead.
+    # See https://data.pypsa.org/workflows/eur/jrc_ardeco/
     rule retrieve_jrc_ardeco:
         """Downloads JRC ARDECO regional GDP and population tables from the ARDECO API."""
         input:

@@ -118,6 +118,29 @@ def test_config_schema_json_in_sync(schema_file, pytestconfig):
     )
 
 
+def test_sector_import_categories_are_validated_and_preserved():
+    config = validate_config(
+        {
+            "sector": {
+                "green_imports": {"enable": True, "price": {"gas": 122}},
+                "fossil_imports": {"enable": True, "price": {"gas": 50}},
+                "other_imports": {"enable": True, "price": {"NH3": 125}},
+            }
+        }
+    )
+
+    assert config.sector.green_imports.enable
+    assert config.sector.fossil_imports.price["gas"] == 50
+    assert config.sector.other_imports.price["NH3"] == 125
+
+
+def test_new_import_categories_are_disabled_when_omitted():
+    config = validate_config({})
+
+    assert config.sector.fossil_imports.enable is False
+    assert config.sector.other_imports.enable is False
+
+
 class TestPlanningHorizonsNormalization:
     """Tests for planning_horizons validation and normalization."""
 
@@ -152,6 +175,79 @@ class TestPlanningHorizonsNormalization:
         validated = validate_config(cfg)
         normalize_config(cfg, validated)
         assert cfg["planning_horizons"] == [2030, 2050]
+
+
+class TestUKConfig:
+    def test_uk_distribution_key_option_defaults_to_disabled_and_is_configurable(self):
+        default_config = validate_config({})
+        assert default_config.uk_settings.data.uk_new_distribution_key is False
+
+        config = validate_config(
+            {"uk_settings": {"data": {"uk_new_distribution_key": True}}}
+        )
+        assert config.uk_settings.data.uk_new_distribution_key is True
+
+    def test_validates_planned_hydrogen_and_single_node_regions(self):
+        config = validate_config(
+            {
+                "uk_settings": {
+                    "prepare": {
+                        "planned_hydrogen_projects": {
+                            "scenario": "pipeline-led",
+                            "demand_level": "high",
+                            "implementation_year": 2030,
+                        }
+                    }
+                },
+                "clustering": {"single_node_regions": ["GBNI"]},
+            }
+        )
+
+        projects = config.uk_settings.prepare.planned_hydrogen_projects
+        assert projects.implementation_year == 2030
+        assert config.clustering.single_node_regions == ["GBNI"]
+
+    def test_rejects_unknown_planned_hydrogen_scenario(self):
+        with pytest.raises(ValueError):
+            validate_config(
+                {
+                    "uk_settings": {
+                        "prepare": {
+                            "planned_hydrogen_projects": {"scenario": "unknown"}
+                        }
+                    }
+                }
+            )
+
+    def test_preserves_local_co2_and_clustering_subregions(self):
+        config = validate_config(
+            {
+                "local_co2": {"GB": {2030: 0.5}},
+                "clustering": {
+                    "cluster_network": {
+                        "subregions": {
+                            "GB": {
+                                "geojson": "data/regions.geojson",
+                                "id_field": "name",
+                            }
+                        }
+                    }
+                },
+            }
+        )
+
+        assert config.local_co2["GB"][2030] == 0.5
+        assert (
+            config.clustering.cluster_network.subregions["GB"].geojson
+            == "data/regions.geojson"
+        )
+
+    def test_validates_import_limits_by_country(self):
+        config = validate_config(
+            {"sector": {"imports": {"enable": True, "limit": {"GB": 2.5}}}}
+        )
+
+        assert config.sector.imports.limit == {"GB": 2.5}
 
 
 class TestValidateScenarios:

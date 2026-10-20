@@ -370,14 +370,15 @@ class _SolidBiomassImportConfig(BaseModel):
     )
 
 
-class _ImportsConfig(BaseModel):
+class _ImportsConfig(ConfigModel):
     """Configuration for `sector.imports` settings."""
 
     enable: bool = Field(
         False, description="Add option to include renewable energy imports."
     )
-    limit: float = Field(
-        float("inf"), description="Maximum allowed renewable energy imports (TWh)."
+    limit: float | dict[str, float] | bool = Field(
+        float("inf"),
+        description="Maximum allowed renewable energy imports (TWh), globally or per country.",
     )
     limit_sense: str = Field("<=", description="Sense of the limit.")
     price: dict[str, float] = Field(
@@ -389,6 +390,41 @@ class _ImportsConfig(BaseModel):
             "oil": 125,
         },
         description="Price for importing renewable energy of carrier.",
+    )
+
+
+class _ImportCategoryConfig(_ImportsConfig):
+    """Shared configuration for non-legacy import categories."""
+
+    enable: bool = Field(
+        False,
+        description="Add option to include this import category; disabled by default.",
+    )
+    limit: float | dict[str, float] | bool = Field(
+        False,
+        description="Maximum allowed imports (TWh), globally or per country; false disables the limit.",
+    )
+    price: dict[str, float] = Field(
+        default_factory=dict,
+        description="Import prices by carrier (currency/MWh).",
+    )
+
+
+class _FossilImportsConfig(_ImportCategoryConfig):
+    """Configuration for fossil imports."""
+
+    price: dict[str, float] = Field(
+        default_factory=lambda: {"gas": 50},
+        description="Fossil import prices by carrier (currency/MWh).",
+    )
+
+
+class _OtherImportsConfig(_ImportCategoryConfig):
+    """Configuration for non-green, non-fossil imports."""
+
+    price: dict[str, float] = Field(
+        default_factory=lambda: {"NH3": 125},
+        description="Other import prices by carrier (currency/MWh).",
     )
 
 
@@ -821,6 +857,15 @@ class SectorConfig(BaseModel):
         True,
         description='Add ammonia as a carrier. It can be either true (copperplated NH3), false (no NH3 carrier) or "regional" (regionalised NH3 without network).',
     )
+    ammonia_turbine: bool = Field(
+        True, description="Add ammonia-fuelled turbines for re-electrification."
+    )
+    ammonia_cracker: bool = Field(
+        False, description="Add ammonia crackers for hydrogen production."
+    )
+    electrolysis_p_min_pu: bool | float = Field(
+        False, description="Minimum output per unit of installed electrolysis capacity."
+    )
     min_part_load_electrolysis: float = Field(
         0, description="The minimum unit dispatch (`p_min_pu`) for electrolysis."
     )
@@ -956,4 +1001,16 @@ class SectorConfig(BaseModel):
     )
     imports: _ImportsConfig = Field(
         default_factory=_ImportsConfig, description="Imports configuration."
+    )
+    green_imports: _ImportsConfig | None = Field(
+        None,
+        description="Green import configuration. Uses legacy `imports` when omitted or null; an empty mapping explicitly disables green imports.",
+    )
+    fossil_imports: _FossilImportsConfig = Field(
+        default_factory=_FossilImportsConfig,
+        description="Fossil import configuration.",
+    )
+    other_imports: _OtherImportsConfig = Field(
+        default_factory=_OtherImportsConfig,
+        description="Other import configuration.",
     )

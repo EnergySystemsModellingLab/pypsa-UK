@@ -810,6 +810,11 @@ rule build_energy_totals:
         district_heat_share="data/district_heat_share.csv",
         eurostat=resources("eurostat_energy_balances.csv"),
         eurostat_households=rules.retrieve_eurostat_household_balances.output["csv"],
+        uk_data=lambda w: (
+            rules.retrieve_uk_data.output.marker
+            if "GB" in config_provider("countries")(w)
+            else []
+        ),
     output:
         energy_name=resources("energy_totals.csv"),
         transport_name=resources("transport_data_raw.csv"),
@@ -984,6 +989,25 @@ rule build_salt_cavern_potentials:
     script:
         scripts("build_salt_cavern_potentials.py")
 
+rule build_depleted_gas_field_potentials:
+    """Builds regional hydrogen storage potentials from depleted gas fields."""
+    input:
+        uk_data=rules.retrieve_uk_data.output.marker,
+        regions_onshore=resources("onshore_regions.geojson"),
+        regions_offshore=resources("offshore_regions.geojson"),
+    output:
+        clustered_depleted_gas_fields=resources("depleted_gas_field_potentials.csv"),
+    threads: 1
+    resources:
+        mem_mb=2000,
+    log:
+        logs("build_depleted_gas_field_potentials.log"),
+    benchmark:
+        benchmarks("build_depleted_gas_field_potentials")
+    conda:
+        "../envs/environment.yaml"
+    script:
+        "../scripts/build_depleted_gas_field_potentials.py"
 
 rule build_ammonia_production:
     """Extracts historical annual ammonia production per country from USGS statistics."""
@@ -1106,8 +1130,14 @@ rule build_industrial_distribution_key:
         gem_gcpt=rules.retrieve_gem_cement_concrete_tracker.output["xlsx"],
         ammonia="data/ammonia_plants.csv",
         refineries_supplement="data/refineries-noneu.csv",
+        uk_fertiliser=lambda w: (
+            rules.retrieve_uk_data.output.uk_fertiliser
+            if "GB" in config_provider("countries")(w)
+            else []
+        ),
     output:
         industrial_distribution_key=resources("industrial_distribution_key.csv"),
+        uk_ammonia_demand=resources("uk_ammonia_demand.csv"),
     log:
         logs("build_industrial_distribution_key.log"),
     benchmark:
@@ -1120,6 +1150,7 @@ rule build_industrial_distribution_key:
             "industry", "hotmaps_locate_missing", default=False
         ),
         countries=config_provider("countries"),
+        uk_settings=config_provider("uk_settings", "data"),
     script:
         scripts("build_industrial_distribution_key.py")
 
@@ -1175,6 +1206,12 @@ rule build_industrial_energy_demand_per_country_today:
         industrial_production_per_country=resources(
             "industrial_production_per_country.csv"
         ),
+        uk_data=lambda w: (
+            rules.retrieve_uk_data.output.marker
+            if "GB" in config_provider("countries")(w)
+            and config_provider("uk_settings", "data", "uk_new_industry_data")(w)
+            else []
+        ),
     output:
         industrial_energy_demand_per_country_today=resources(
             "industrial_energy_demand_per_country_today.csv"
@@ -1190,6 +1227,7 @@ rule build_industrial_energy_demand_per_country_today:
         countries=config_provider("countries"),
         industry=config_provider("industry"),
         ammonia=config_provider("sector", "ammonia", default=False),
+        uk_settings=config_provider("uk_settings", "data"),
     script:
         scripts("build_industrial_energy_demand_per_country_today.py")
 
