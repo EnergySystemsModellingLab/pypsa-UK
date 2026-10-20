@@ -1130,10 +1130,9 @@ rule build_industrial_distribution_key:
         gem_gcpt=rules.retrieve_gem_cement_concrete_tracker.output["xlsx"],
         ammonia="data/ammonia_plants.csv",
         refineries_supplement="data/refineries-noneu.csv",
-        uk_data=lambda w: (
+        uk_fertiliser=lambda w: (
             rules.retrieve_uk_data.output.marker
             if "GB" in config_provider("countries")(w)
-            and config_provider("uk_settings", "data", "uk_new_distribution_key")(w)
             else []
         ),
     output:

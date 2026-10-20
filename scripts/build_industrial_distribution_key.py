@@ -12,6 +12,7 @@ Dedicated keys use plant capacities instead of emissions: the steel routes (EAF,
 import logging
 import uuid
 from itertools import product
+from pathlib import Path
 
 import country_converter as coco
 import geopandas as gpd
@@ -181,7 +182,11 @@ def prepare_gem_cement_database(fn: str, regions: gpd.GeoDataFrame) -> gpd.GeoDa
     return gdf
 
 
-def prepare_ammonia_database(fn: str, regions: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def prepare_ammonia_database(
+    fn: str,
+    regions: gpd.GeoDataFrame,
+    uk_fertiliser_file: str | None = None,
+) -> gpd.GeoDataFrame:
     """
     Load ammonia database of plants and map onto bus regions.
     """
@@ -191,20 +196,21 @@ def prepare_ammonia_database(fn: str, regions: gpd.GeoDataFrame) -> gpd.GeoDataF
     # drop data for the UK
     df = df.query("Country != 'United Kingdom'")
 
-    # Read UK data
-    df_uk = pd.read_csv(snakemake.input.uk_fertiliser, index_col=0)
+    if uk_fertiliser_file:
+        df_uk = pd.read_csv(uk_fertiliser_file, index_col=0)
 
-    conversion = 0.5 # assuming 500 gram ammonia per kg of fertiliser. This depends on which fertiliser product (ammonium nitrate or urea) is being produced.
+        conversion = 0.5  # assuming 500 gram ammonia per kg of fertiliser
+        df_uk["Ammonia [kt/a]"] = (
+            df_uk["Production (tonnes/year)"] * conversion * 1e-3
+        )
+        df_uk["Latitude"] = df_uk["lat"]
+        df_uk["Longitude"] = df_uk["lon"]
+        df_uk["Country"] = "United Kingdom"
+        df_uk["Source"] = df_uk["Sources"]
+        df_uk["Date"] = "22-09-2026"
 
-    df_uk["Ammonia [kt/a]"] = df_uk["Production (tonnes/year)"] * conversion * 1e-3 
-    df_uk["Latitude"] = df_uk["lat"]
-    df_uk["Longitude"] = df_uk["lon"]
-    df_uk["Country"] = "United Kingdom"
-    df_uk["Source"] = df_uk["Sources"]
-    df_uk["Date"] = "22-09-2026"
-
-    matching_columns = df.columns.intersection(df_uk.columns)
-    df = pd.concat([df, df_uk[matching_columns]])
+        matching_columns = df.columns.intersection(df_uk.columns)
+        df = pd.concat([df, df_uk[matching_columns]])
 
     ################################################################
     geometry = gpd.points_from_xy(df.Longitude, df.Latitude)
@@ -528,7 +534,15 @@ if __name__ == "__main__":
 
     steel = prepare_gem_steel_database(snakemake.input.gem_gspt, regions)
 
-    ammonia = prepare_ammonia_database(snakemake.input.ammonia, regions)
+    ammonia = prepare_ammonia_database(
+        snakemake.input.ammonia,
+        regions,
+        uk_fertiliser_file=(
+            Path(snakemake.input.uk_fertiliser).parent / "uk_fertiliser.csv"
+            if snakemake.input.uk_fertiliser
+            else None
+        ),
+    )
 
     cement = prepare_gem_cement_database(snakemake.input.gem_gcpt, regions)
 
