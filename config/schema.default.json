@@ -6807,6 +6807,10 @@
         "uk_new_industry_data": {
           "default": false,
           "type": "boolean"
+        },
+        "uk_new_distribution_key": {
+          "default": false,
+          "type": "boolean"
         }
       }
     },
@@ -6906,6 +6910,10 @@
               "type": "boolean"
             },
             "uk_new_industry_data": {
+              "default": false,
+              "type": "boolean"
+            },
+            "uk_new_distribution_key": {
               "default": false,
               "type": "boolean"
             }
@@ -10868,6 +10876,10 @@
               "type": "boolean"
             },
             "uk_new_industry_data": {
+              "default": false,
+              "type": "boolean"
+            },
+            "uk_new_distribution_key": {
               "default": false,
               "type": "boolean"
             }

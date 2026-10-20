@@ -1130,6 +1130,12 @@ rule build_industrial_distribution_key:
         gem_gcpt=rules.retrieve_gem_cement_concrete_tracker.output["xlsx"],
         ammonia="data/ammonia_plants.csv",
         refineries_supplement="data/refineries-noneu.csv",
+        uk_data=lambda w: (
+            rules.retrieve_uk_data.output.marker
+            if "GB" in config_provider("countries")(w)
+            and config_provider("uk_settings", "data", "uk_new_distribution_key")(w)
+            else []
+        ),
     output:
         industrial_distribution_key=resources("industrial_distribution_key.csv"),
         uk_ammonia_demand=resources("uk_ammonia_demand.csv"),
@@ -1200,6 +1206,12 @@ rule build_industrial_energy_demand_per_country_today:
         jrc=rules.retrieve_jrc_idees.output["directory"],
         industrial_production_per_country=resources(
             "industrial_production_per_country.csv"
+        ),
+        uk_data=lambda w: (
+            rules.retrieve_uk_data.output.marker
+            if "GB" in config_provider("countries")(w)
+            and config_provider("uk_settings", "data", "uk_new_industry_data")(w)
+            else []
         ),
     output:
         industrial_energy_demand_per_country_today=resources(

@@ -17,6 +17,7 @@ class UKDataConfig(ConfigModel):
     uk_new_gas_storage_data: bool = Field(True)
     uk_new_powerplants_data: bool = Field(True)
     uk_new_industry_data: bool = Field(False)
+    uk_new_distribution_key: bool = Field(False)
 
 
 class PlannedHydrogenProjectsConfig(ConfigModel):

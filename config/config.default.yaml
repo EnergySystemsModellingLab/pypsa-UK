@@ -86,6 +86,7 @@ uk_settings:
     uk_new_gas_storage_data: true # whether to use new UK gas storage data (various sources)
     uk_new_powerplants_data: true # whether to use new UK powerplant data (OpenStreetMap)  
     uk_new_industry_data: false # whether to use new UK industry energy demand data from UK gov (DUKES)
+    uk_new_distribution_key: false # whether to use the new UK industrial distribution key from NAEI
   
   # settings for the UK defined in the "prepare_sector_network.py" script
   prepare:
