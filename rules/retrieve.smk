@@ -22,6 +22,16 @@ storage cached_http:
     provider="cached-http",
 
 
+rule retrieve_uk_data:
+    """Downloads UK-specific input data from Zenodo."""
+    output:
+        marker="data/data_UK/.zenodo_20522643_complete",
+    log:
+        logs("retrieve_uk_data.log"),
+    script:
+        scripts("retrieve_uk_data.py")
+
+
 if (EUROSTAT_BALANCES_DATASET := dataset_version("eurostat_balances"))["source"] in [
     "primary",
     "archive",

@@ -67,6 +67,11 @@ def get_compose_inputs(w):
         network=resources("networks/clustered.nc"),
         onshore_regions=resources("onshore_regions.geojson"),
         offshore_regions=resources("offshore_regions.geojson"),
+        uk_data=(
+            rules.retrieve_uk_data.output.marker
+            if "GB" in cfg["countries"]
+            else []
+        ),
         solar_rooftop_potentials=(
             resources("solar_rooftop_potentials.csv")
             if "solar" in cfg["electricity"]["renewable_carriers"]
@@ -183,11 +188,6 @@ def get_compose_inputs(w):
             depleted_gas_fields=(
                 resources("depleted_gas_field_potentials.csv")
                 if sector["hydrogen_depleted_gas_fields"]
-                else []
-            ),
-            planned_hydrogen_projects=(
-                "data/data_UK/planned_hydrogen_projects.xlsx"
-                if planned_hydrogen_projects
                 else []
             ),
             uk_ammonia_demand=resources("uk_ammonia_demand.csv"),

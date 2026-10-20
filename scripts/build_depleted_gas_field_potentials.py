@@ -7,6 +7,7 @@ Build depleted gas fields potentials for hydrogen storage.
 """
 
 import logging
+from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
@@ -73,7 +74,10 @@ if __name__ == "__main__":
     fn_offshore = snakemake.input.regions_offshore
 
     cluster_depleted_gas_fields(
-        depleted_gas_fields_file=snakemake.input.depleted_gas_fields,
+        depleted_gas_fields_file=(
+            Path(snakemake.input.uk_data).parent
+            / "secret/UK_depleted_gas_fields.csv"
+        ),
         clustered_depleted_gas_fields=snakemake.output.clustered_depleted_gas_fields,
         fn_onshore = fn_onshore, 
         fn_offshore = fn_offshore,

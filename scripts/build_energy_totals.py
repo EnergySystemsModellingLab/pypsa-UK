@@ -1183,8 +1183,11 @@ if __name__ == "__main__":
 
     energy = build_energy_totals(countries, eurostat, swiss, idees)
     update_residential_from_eurostat(energy, snakemake.input.eurostat_households)
-    if snakemake.input.uk_energy_balance:
-        energy = update_UK_energy_balance(energy, snakemake.input.uk_energy_balance)
+    if snakemake.input.uk_data:
+        uk_energy_balance = Path(snakemake.input.uk_data).parent / (
+            "ECUK_2025_End_Use_tables.xlsx"
+        )
+        energy = update_UK_energy_balance(energy, uk_energy_balance)
     energy.to_csv(snakemake.output.energy_name)
 
     district_heat_share = build_district_heat_share(

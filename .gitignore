@@ -25,6 +25,9 @@ gurobi.log
 /logs
 /notebooks
 /data/*
+!/data/data_UK/
+/data/data_UK/**
+!/data/data_UK/.gitkeep
 /cutouts
 /tmp
 doc/_build

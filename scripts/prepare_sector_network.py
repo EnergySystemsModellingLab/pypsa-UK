@@ -7408,7 +7408,7 @@ def main(
             planned_projects,
             inputs.onshore_regions,
             current_horizon,
-            inputs.planned_hydrogen_projects,
+            "data/data_UK/planned_hydrogen_projects.xlsx",
         )
     elif project_demand_outputs:
         for output in project_demand_outputs:

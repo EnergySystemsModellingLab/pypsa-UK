@@ -14,6 +14,11 @@ rule build_electricity_demand:
             if config_provider("load", "supplement_synthetic")(w)
             else []
         ),
+        uk_data=lambda w: (
+            rules.retrieve_uk_data.output.marker
+            if "GB" in config_provider("countries")(w)
+            else []
+        ),
     output:
         resources("electricity_demand.csv"),
     log:
