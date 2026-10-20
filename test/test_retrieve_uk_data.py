@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: Contributors to PyPSA-Eur <https://github.com/pypsa/pypsa-eur>
 #
 # SPDX-License-Identifier: MIT
+"""Tests for retrieving the UK-specific Zenodo data archive."""
 
 from io import BytesIO
 import zipfile
@@ -11,6 +12,7 @@ from scripts import retrieve_uk_data
 
 
 def make_zip(entries: dict[str, bytes]) -> bytes:
+    """Create an in-memory ZIP archive from named byte contents."""
     buffer = BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:
         for name, content in entries.items():
@@ -19,21 +21,28 @@ def make_zip(entries: dict[str, bytes]) -> bytes:
 
 
 class FakeResponse:
+    """Minimal streamed-response stub for the downloader tests."""
+
     def __init__(self, content: bytes):
+        """Initialize the response with the archive bytes."""
         self.content = content
         self.closed = False
 
     def raise_for_status(self):
+        """Match the requests response method."""
         pass
 
     def iter_content(self, chunk_size):
+        """Yield the archive bytes as one streamed chunk."""
         yield self.content
 
     def close(self):
+        """Record that the downloader closed the response."""
         self.closed = True
 
 
 def test_download_extracts_archive_and_writes_marker(tmp_path, monkeypatch):
+    """Download and extract archive contents, then write the completion marker."""
     response = FakeResponse(make_zip({"folder/UK_dataset.csv": b"value\n1\n"}))
     monkeypatch.setattr(
         retrieve_uk_data.requests, "get", lambda *args, **kwargs: response
@@ -47,6 +56,7 @@ def test_download_extracts_archive_and_writes_marker(tmp_path, monkeypatch):
 
 
 def test_extract_rejects_paths_outside_destination(tmp_path):
+    """Reject ZIP members that attempt path traversal."""
     archive_path = tmp_path / "unsafe.zip"
     archive_path.write_bytes(make_zip({"../outside.txt": b"unsafe"}))
 
@@ -57,6 +67,7 @@ def test_extract_rejects_paths_outside_destination(tmp_path):
 
 
 def test_extract_rejects_symbolic_links(tmp_path):
+    """Reject ZIP members that encode symbolic links."""
     archive_path = tmp_path / "symlink.zip"
     with zipfile.ZipFile(archive_path, "w") as archive:
         member = zipfile.ZipInfo("link")

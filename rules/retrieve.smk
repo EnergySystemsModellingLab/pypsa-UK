@@ -28,6 +28,7 @@ rule retrieve_uk_data:
         marker="data/data_UK/.zenodo_20522643_complete",
     log:
         logs("retrieve_uk_data.log"),
+    retries: 3
     script:
         scripts("retrieve_uk_data.py")
 
