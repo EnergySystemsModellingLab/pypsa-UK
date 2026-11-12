@@ -25,7 +25,7 @@ run:
   prefix: "pypsa-uk"
   name: "all" # scenario name
   scenarios:
-    enable: true
+    enable: false
     file: config/scenarios.yaml
   disable_progressbar: false
   shared_resources:
