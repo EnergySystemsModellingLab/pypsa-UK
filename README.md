@@ -13,11 +13,15 @@ SPDX-License-Identifier: CC-BY-4.0
 [![Discord](https://img.shields.io/discord/911692131440148490?logo=discord)](https://discord.gg/AnuJBk23FU)
 [![REUSE status](https://api.reuse.software/badge/github.com/pypsa/pypsa-eur)](https://api.reuse.software/info/github.com/pypsa/pypsa-eur)
 
-# Data needs for PyPSA-Eur-UK
+# PyPSA-Eur-UK
 
-Download all data located in this [Zenodo repository](https://doi.org/10.5281/zenodo.20522643)
+This repository extends the master PyPSA-Eur workflow with UK-focused configuration, data, and model support. Key additions include:
 
-Create a folder named "data_UK" containing this data and locate it in the /data/ folder in the PyPSA-Eur workflow.
+- UK-specific model settings and energy-balance inputs (ECUK) for Great Britain and Northern Ireland.
+- Retrieval and use of UK datasets, including NESO and DESNZ electricity-demand data.
+- Support for planned hydrogen projects and hydrogen storage potentials from depleted gas fields.
+
+Workflows that include Great Britain automatically download UK-specific input data from [Zenodo](https://doi.org/10.5281/zenodo.20522643) to `data/data_UK`. See the [UK-specific data documentation](doc/data_sources.md#uk-specific-data) for details.
 
 # PyPSA-Eur: A Sector-Coupled Open Optimisation Model of the European Energy System
 
